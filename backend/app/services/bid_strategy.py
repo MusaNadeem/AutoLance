@@ -139,7 +139,9 @@ class BidStrategyEngine:
         # otherwise                → "Competitive" (anchored near market rate)
         suffix = "/hr" if budget_type == "hourly" else ""
 
-        if rate_diff_ratio >= 0.10:
+        if proposals_count >= 20:
+            strategy = "Competitive"
+        elif rate_diff_ratio >= 0.10:
             strategy = "Value"
         elif rate_diff_ratio <= -0.10:
             strategy = "Premium"
