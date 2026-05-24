@@ -1,0 +1,96 @@
+/* Fonts loaded via next/font/google in layout.tsx */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --radius: 0px;
+  }
+
+  * {
+    @apply border-border;
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-surface-900 text-slate-100 font-sans antialiased;
+    min-height: 100vh;
+  }
+
+  /* Custom scrollbar - Brutalist style */
+  ::-webkit-scrollbar { width: 12px; border-left: 2px solid theme('colors.border.DEFAULT'); }
+  ::-webkit-scrollbar-track { @apply bg-surface-800; }
+  ::-webkit-scrollbar-thumb { @apply bg-surface-500 border-2 border-surface-800; }
+  ::-webkit-scrollbar-thumb:hover { @apply bg-neon-lime; }
+  
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-display tracking-tight;
+  }
+}
+
+@layer components {
+  /* Brutalist Panel */
+  .brutal-panel {
+    @apply bg-surface-800 border-2 border-border shadow-brutal-md transition-all duration-200;
+  }
+  .brutal-panel:hover {
+    @apply border-neon-lime shadow-brutal-lg -translate-y-1;
+  }
+
+  /* Gradient text (kept for backwards compatibility but changed to neon colors if needed, actually removed for solid colors) */
+  .gradient-text {
+    @apply text-neon-lime;
+  }
+
+  /* Score ring */
+  .score-ring {
+    transition: stroke-dashoffset 1.2s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  /* Shimmer skeleton - high contrast */
+  .skeleton {
+    background: linear-gradient(
+      90deg,
+      #1f1f1f 25%,
+      #2e2e2e 50%,
+      #1f1f1f 75%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s linear infinite;
+  }
+
+  /* Button variants */
+  .btn-primary {
+    @apply bg-neon-lime text-surface-900 font-display font-bold uppercase tracking-wider px-6 py-3
+           border-2 border-neon-lime shadow-brutal-sm
+           hover:shadow-brutal-md hover:-translate-y-0.5 hover:bg-transparent hover:text-neon-lime 
+           active:translate-y-0 active:shadow-none transition-all duration-150;
+  }
+  
+  .btn-ghost {
+    @apply bg-surface-800 text-slate-100 font-display font-bold uppercase tracking-wider px-6 py-3
+           border-2 border-border hover:border-neon-lime hover:text-neon-lime
+           transition-all duration-150;
+  }
+
+  /* Quality tier badges */
+  .badge-high { @apply bg-neon-lime text-surface-900 font-bold border-2 border-neon-lime px-2 py-1 text-xs uppercase tracking-wider; }
+  .badge-medium { @apply bg-neon-cyan text-surface-900 font-bold border-2 border-neon-cyan px-2 py-1 text-xs uppercase tracking-wider; }
+  .badge-risky { @apply bg-neon-orange text-surface-900 font-bold border-2 border-neon-orange px-2 py-1 text-xs uppercase tracking-wider; }
+  .badge-avoid { @apply bg-neon-pink text-surface-900 font-bold border-2 border-neon-pink px-2 py-1 text-xs uppercase tracking-wider; }
+
+  /* Navigation item */
+  .nav-item {
+    @apply flex items-center gap-3 px-4 py-3 text-slate-400 font-display uppercase text-sm tracking-wide
+           hover:text-neon-lime hover:bg-surface-800 border-l-4 border-transparent transition-all duration-150;
+  }
+  .nav-item.active {
+    @apply text-neon-lime bg-surface-800 border-neon-lime;
+  }
+}

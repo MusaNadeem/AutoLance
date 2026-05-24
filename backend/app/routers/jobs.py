@@ -1,0 +1,159 @@
+"""Jobs Router — Browse and filter scraped jobs"""
+from typing import Optional
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, func, desc
+from sqlalchemy.orm import selectinload
+
+from app.database import get_db
+from app.models.user import User
+from app.models.job import Job
+from app.models.client import Client
+from app.middleware.auth import get_current_user
+from app.workers.scrape_tasks import manual_scrape
+
+router = APIRouter(prefix="/jobs", tags=["Jobs"])
+
+
+@router.get("/")
+async def list_jobs(
+    page: int = Query(1, ge=1),
+    limit: int = Query(20, ge=1, le=100),
+    budget_type: Optional[str] = None,
+    experience_level: Optional[str] = None,
+    proposal_tier: Optional[str] = None,
+    min_budget: Optional[float] = None,
+    max_budget: Optional[float] = None,
+    skills: Optional[str] = Query(None, description="Comma-separated skills"),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Paginated job feed with filtering."""
+    query = select(Job).where(Job.is_active == True)
+
+    if budget_type:
+        query = query.where(Job.budget_type == budget_type)
+    if experience_level:
+        query = query.where(Job.experience_level == experience_level)
+    if proposal_tier:
+        query = query.where(Job.proposal_tier == proposal_tier)
+    if min_budget:
+        query = query.where(Job.budget_min >= min_budget)
+    if max_budget:
+        query = query.where(Job.budget_max <= max_budget)
+
+    query = query.order_by(desc(Job.posted_at)).offset((page - 1) * limit).limit(limit)
+
+    result = await db.execute(query)
+    jobs = result.scalars().all()
+
+    return {
+        "page": page,
+        "limit": limit,
+        "jobs": [_serialize_job(j) for j in jobs],
+    }
+
+
+@router.get("/stats")
+async def scraping_stats(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get scraping statistics."""
+    from app.models import ScrapingRun
+    result = await db.execute(
+        select(ScrapingRun).order_by(desc(ScrapingRun.started_at)).limit(10)
+    )
+    runs = result.scalars().all()
+
+    total_jobs = await db.execute(select(func.count(Job.id)))
+    active_jobs = await db.execute(
+        select(func.count(Job.id)).where(Job.is_active == True)
+    )
+
+    return {
+        "total_jobs": total_jobs.scalar(),
+        "active_jobs": active_jobs.scalar(),
+        "recent_runs": [
+            {
+                "id": str(r.id),
+                "status": r.status,
+                "jobs_scraped": r.jobs_scraped,
+                "jobs_new": r.jobs_new,
+                "started_at": r.started_at,
+                "duration_seconds": r.duration_seconds,
+            }
+            for r in runs
+        ],
+    }
+
+
+@router.post("/trigger-scrape")
+async def trigger_scrape(current_user: User = Depends(get_current_user)):
+    """Manually trigger a job scraping run."""
+    manual_scrape.apply_async(queue="scraping")
+    return {"status": "triggered", "message": "Scraping job queued"}
+
+
+@router.get("/{job_id}")
+async def get_job(
+    job_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get detailed job info including client data."""
+    import uuid as _uuid
+    result = await db.execute(
+        select(Job).where(Job.id == _uuid.UUID(job_id))
+    )
+    job = result.scalar_one_or_none()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    client = None
+    if job.client_id:
+        client_result = await db.execute(
+            select(Client).where(Client.id == job.client_id)
+        )
+        client = client_result.scalar_one_or_none()
+
+    return {**_serialize_job(job), "client": _serialize_client(client)}
+
+
+def _serialize_job(job: Job) -> dict:
+    return {
+        "id": str(job.id),
+        "upwork_job_id": job.upwork_job_id,
+        "title": job.title,
+        "description": job.description,
+        "url": job.url,
+        "budget_type": job.budget_type,
+        "budget_min": float(job.budget_min) if job.budget_min else None,
+        "budget_max": float(job.budget_max) if job.budget_max else None,
+        "required_skills": job.required_skills,
+        "experience_level": job.experience_level,
+        "project_length": job.project_length,
+        "proposal_count": job.proposal_count,
+        "proposal_tier": job.proposal_tier,
+        "posted_at": job.posted_at,
+        "scraped_at": job.scraped_at,
+    }
+
+
+def _serialize_client(client: Optional[Client]) -> Optional[dict]:
+    if not client:
+        return None
+    return {
+        "id": str(client.id),
+        "country": client.country,
+        "payment_verified": client.payment_verified,
+        "total_spent": float(client.total_spent) if client.total_spent else None,
+        "hire_rate": float(client.hire_rate) if client.hire_rate else None,
+        "total_hires": client.total_hires,
+        "average_rating": float(client.average_rating) if client.average_rating else None,
+        "quality_tier": client.quality_tier,
+        "quality_score": client.quality_score,
+        "trust_score": client.trust_score,
+        "red_flags": client.red_flags,
+        "green_flags": client.green_flags,
+    }
