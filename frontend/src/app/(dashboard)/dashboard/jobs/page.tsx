@@ -138,6 +138,10 @@ export default function JobsPage() {
 
   const { data: jobsData, isLoading } = useSWR("/jobs", fetcher, {
     fallbackData: { jobs: DEMO_JOBS },
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
+    shouldRetryOnError: false,
+    errorRetryCount: 0,
   });
 
   const apiJobs: Job[] = jobsData?.jobs ?? [];
@@ -145,7 +149,13 @@ export default function JobsPage() {
 
   const { data: jobDetails } = useSWR<Job>(
     selectedJobId ? `/jobs/${selectedJobId}` : null,
-    fetcher
+    fetcher,
+    {
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+      shouldRetryOnError: false,
+      errorRetryCount: 0,
+    }
   );
   const selectedJob: Job | undefined = jobDetails ?? jobs.find((j) => j.id === selectedJobId);
 
@@ -203,6 +213,7 @@ export default function JobsPage() {
               return (
                 <motion.div
                   key={job.id}
+                  layout="position"
                   initial={{ opacity: 0, y: 16 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: i * 0.05, duration: 0.25, ease: "easeOut" }}
