@@ -33,6 +33,7 @@ from app.models import (
     AlertEvent,
     ActivityLog,
     ScrapingRun,
+    Notification,
 )
 
 target_metadata = Base.metadata

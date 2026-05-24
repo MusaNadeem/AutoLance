@@ -1,13 +1,12 @@
 "use client";
 
 import { motion } from "framer-motion";
+import type { JobScore } from "@/types";
 
 interface ScoreBadgeProps {
-  overall_score: number;
-  skill_match_score?: number | null;
-  semantic_relevance_score?: number | null;
-  competition_score?: number | null;
-  client_quality?: number | null;
+  score?: JobScore | null;
+  /** overall_score fallback when no MatchScore exists yet (0-100 legacy) */
+  overall_score?: number | null;
 }
 
 function scoreColour(score: number | null | undefined): { text: string; bar: string; border: string } {
@@ -50,22 +49,25 @@ function SignalBar({ label, value, delay = 0 }: SignalBarProps) {
   );
 }
 
-export function ScoreBadge({
-  overall_score,
-  skill_match_score,
-  semantic_relevance_score,
-  competition_score,
-  client_quality,
-}: ScoreBadgeProps) {
-  const overall = Math.max(0, Math.min(100, Math.round(overall_score)));
+export function ScoreBadge({ score, overall_score }: ScoreBadgeProps) {
+  // Resolve overall: prefer score.overall (0.0-1.0), fall back to legacy prop (0-100)
+  const overallRaw =
+    score?.overall != null
+      ? Math.round(score.overall * 100)
+      : overall_score != null
+      ? Math.round(overall_score)
+      : 0;
+  const overall = Math.max(0, Math.min(100, overallRaw));
   const overallColours = scoreColour(overall);
-  const clientQualityPct = client_quality == null ? null : Math.round(client_quality * 100);
+
+  // Convert 0.0-1.0 score signals to 0-100 for SignalBar
+  const toBar = (v?: number | null) => (v == null ? null : Math.round(v * 100));
 
   const signals: SignalBarProps[] = [
-    { label: "Skill Match",     value: skill_match_score,        delay: 0.10 },
-    { label: "ROI / Relevance", value: semantic_relevance_score, delay: 0.15 },
-    { label: "Competition",     value: competition_score,         delay: 0.20 },
-    { label: "Client Quality",  value: clientQualityPct,         delay: 0.25 },
+    { label: "Skill Match",    value: toBar(score?.skill_match),    delay: 0.10 },
+    { label: "ROI",            value: toBar(score?.roi),            delay: 0.15 },
+    { label: "Competition",    value: toBar(score?.competition),    delay: 0.20 },
+    { label: "Client Quality", value: toBar(score?.client_quality), delay: 0.25 },
   ];
 
   return (

@@ -1,4 +1,4 @@
-"""MatchScore, CoverLetter, Proposal, Alert, ActivityLog ORM Models"""
+"""MatchScore, CoverLetter, Proposal, Alert, ActivityLog, Notification ORM Models"""
 import uuid
 from sqlalchemy import (
     Boolean, Column, DateTime, ForeignKey, Integer,
@@ -7,6 +7,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import relationship
 from app.database import Base
+from app.models.notification import Notification  # noqa: F401 — re-exported
 
 
 class CVDocument(Base):

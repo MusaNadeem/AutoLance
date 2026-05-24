@@ -183,7 +183,11 @@ export default function DashboardPage() {
                 className="brutal-panel p-5 cursor-pointer group"
               >
                 <div className="flex items-start gap-5">
-                  <ScoreRing score={(job.score as number) || Math.floor(Math.random() * 20 + 80)} />
+                  <ScoreRing score={
+                    typeof job.score === "number"
+                      ? job.score
+                      : Math.round(((job.score as { overall?: number | null })?.overall ?? 0) * 100) || Math.floor(Math.random() * 20 + 80)
+                  } />
 
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-3">
@@ -216,7 +220,13 @@ export default function DashboardPage() {
                     </div>
 
                     <div className="flex items-center gap-2 mt-4">
-                      {(job.required_skills ? JSON.parse(job.required_skills as string) : ["React", "FastAPI"]).slice(0, 3).map((skill: string) => (
+                      {((() => {
+                        const raw = job.required_skills;
+                        if (!raw) return ["React", "FastAPI"];
+                        if (Array.isArray(raw)) return raw;
+                        try { return JSON.parse(raw as string); }
+                        catch { return (raw as string).split(",").map((s: string) => s.trim()); }
+                      })() as string[]).slice(0, 3).map((skill: string) => (
                         <span key={skill} className="px-2 py-1 border-2 border-surface-600 bg-surface-900 text-slate-300 font-mono text-xs font-bold">
                           {skill}
                         </span>

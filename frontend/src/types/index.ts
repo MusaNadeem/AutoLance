@@ -20,8 +20,19 @@ export type ProposalStatus     = "drafted" | "sent" | "replied" | "interview" | 
 export type QualityTier        = "high" | "medium" | "risky" | "avoid";
 
 // ── Phase 1: Score sub-object ─────────────────────────────────────────────────
+// All values normalised to 0.0–1.0 by the API.
+// client_quality is always present (computed at ingestion).
+// overall, skill_match, roi, competition are null until the user scores the job.
 
 export interface JobScore {
+  /** Weighted aggregate score 0.0-1.0 */
+  overall?: number | null;
+  /** Skill match score 0.0-1.0 (from MatchScore) */
+  skill_match?: number | null;
+  /** Semantic relevance / ROI score 0.0-1.0 (from MatchScore) */
+  roi?: number | null;
+  /** Competition score 0.0-1.0 (from MatchScore) */
+  competition?: number | null;
   /** Client quality score 0.0-1.0 (hire_rate 40%, avg_rating 40%, jobs_posted 20%) */
   client_quality?: number | null;
 }
@@ -57,14 +68,31 @@ export interface ScrapeStatus {
   is_running: boolean;
 }
 
+// ── Phase 2: Notification (in-app alert) ─────────────────────────────────────
+
 export interface Notification {
   id: string;
-  job_id?: string;
-  trigger_reason?: string;
-  channel: string;
-  sent_at: string;
-  read_at?: string;
-  is_actioned: boolean;
+  job_id?: string | null;
+  job_title: string;
+  /** Aggregate score 0.0-1.0 */
+  score: number;
+  message?: string | null;
+  is_read: boolean;
+  created_at: string;
+}
+
+export interface NotificationsResponse {
+  unread_count: number;
+  notifications: Notification[];
+}
+
+// ── Phase 2: Alert config (user preferences) ─────────────────────────────────
+
+export interface AlertConfigPhase2 {
+  score_threshold: number;   // 0.0–1.0
+  slack_webhook_url?: string | null;
+  email_address?: string | null;
+  enabled: boolean;
 }
 
 // ── Phase 3 stub ──────────────────────────────────────────────────────────────

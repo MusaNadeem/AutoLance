@@ -3,18 +3,34 @@
 import { useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Target, Eye, EyeOff, ArrowRight, Loader2 } from "lucide-react";
+import { Target, Eye, EyeOff, ArrowRight, Loader2, AlertCircle } from "lucide-react";
+import { apiClient } from "@/lib/api";
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const [form, setForm] = useState({ email: "", password: "" });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    // In a real app, you would call your API here
-    setTimeout(() => { setLoading(false); window.location.href = "/dashboard"; }, 1500);
+    setError("");
+    try {
+      const res = await apiClient.post("/auth/login", {
+        email: form.email,
+        password: form.password,
+      });
+      const { access_token, refresh_token } = res.data;
+      localStorage.setItem("access_token", access_token);
+      if (refresh_token) localStorage.setItem("refresh_token", refresh_token);
+      window.location.href = "/dashboard";
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { detail?: string } } };
+      setError(e?.response?.data?.detail || "Invalid email or password");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -30,6 +46,12 @@ export default function LoginPage() {
 
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="brutal-panel p-8">
           <form onSubmit={handleSubmit} className="space-y-6">
+            {error && (
+              <div className="flex items-center gap-2 px-4 py-3 bg-neon-pink/10 border-2 border-neon-pink text-neon-pink font-mono text-sm">
+                <AlertCircle size={16} strokeWidth={2.5} />
+                {error}
+              </div>
+            )}
             <div>
               <label className="block text-sm font-mono font-bold text-slate-300 mb-2 uppercase tracking-wide">Email Address</label>
               <input

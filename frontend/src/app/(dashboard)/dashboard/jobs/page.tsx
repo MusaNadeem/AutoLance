@@ -67,7 +67,7 @@ const DEMO_JOBS: Job[] = [
     proposal_tier: "low",
     required_skills: ["FastAPI", "PostgreSQL", "Redis"],
     scraped_at: new Date().toISOString(),
-    score: { client_quality: 0.82 },
+    score: { overall: 0.88, skill_match: 0.92, roi: 0.85, competition: 0.90, client_quality: 0.82 },
     bid: {
       recommended: 95,
       range_min: 85.5,
@@ -91,7 +91,7 @@ const DEMO_JOBS: Job[] = [
     proposal_tier: "medium",
     required_skills: ["React Native", "TypeScript", "API Integration"],
     scraped_at: new Date().toISOString(),
-    score: { client_quality: 0.64 },
+    score: { overall: 0.72, skill_match: 0.75, roi: 0.68, competition: 0.65, client_quality: 0.64 },
     bid: {
       recommended: 3800,
       range_min: 3420,
@@ -115,7 +115,7 @@ const DEMO_JOBS: Job[] = [
     proposal_tier: "low",
     required_skills: ["Python", "ML", "NLP"],
     scraped_at: new Date().toISOString(),
-    score: { client_quality: 0.91 },
+    score: { overall: 0.95, skill_match: 0.97, roi: 0.94, competition: 0.96, client_quality: 0.91 },
     bid: {
       recommended: 147,
       range_min: 132.3,
@@ -200,9 +200,11 @@ export default function JobsPage() {
               ))
           ) : (
             jobs.map((job, i) => {
-              // Overall score: prefer match data, fall back to 0
-              const score = 72; // placeholder — Phase 2 wires real match scores
-              const isEasyWin = score > 85;
+              // Overall score: prefer score.overall (0.0-1.0 → 0-100), fall back to 0
+              const scoreVal = job.score?.overall != null
+                ? Math.round(job.score.overall * 100)
+                : 0;
+              const isEasyWin = scoreVal > 85;
               const clientTier =
                 (job.score?.client_quality ?? 0) >= 0.75
                   ? "high"
@@ -235,7 +237,7 @@ export default function JobsPage() {
                     )}
                   </div>
 
-                  <CompactScoreBar score={score} />
+                  <CompactScoreBar score={scoreVal} />
 
                   <div className="flex flex-wrap gap-4 mt-5 font-mono text-xs font-bold text-slate-400 uppercase tracking-wide">
                     <span className="flex items-center gap-1 text-white">
@@ -289,11 +291,7 @@ export default function JobsPage() {
             <div className="p-6 space-y-6 flex-1 overflow-y-auto">
               {/* ScoreBadge — QA-9 & QA-10 */}
               <ScoreBadge
-                overall_score={72}
-                skill_match_score={selectedJob.score ? 78 : null}
-                semantic_relevance_score={selectedJob.score ? 65 : null}
-                competition_score={selectedJob.score ? 80 : null}
-                client_quality={selectedJob.score?.client_quality ?? null}
+                score={selectedJob.score}
               />
 
               {/* BidRecommendation — QA-11 & QA-12 */}
@@ -357,7 +355,7 @@ export default function JobsPage() {
                 <div className="flex flex-wrap gap-2">
                   {(Array.isArray(selectedJob.required_skills)
                     ? selectedJob.required_skills
-                    : JSON.parse(selectedJob.required_skills as unknown as string)
+                    : (() => { try { return JSON.parse(selectedJob.required_skills as unknown as string); } catch { return (selectedJob.required_skills as unknown as string).split(',').map((s: string) => s.trim()); } })()
                   ).map((s: string) => (
                     <span
                       key={s}

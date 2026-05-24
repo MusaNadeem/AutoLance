@@ -1,5 +1,5 @@
 /**
- * FreelanceIQ API Client — Phase 1
+ * FreelanceIQ API Client — Phase 2
  * All components call this file. Never raw fetch() in a component.
  */
 
@@ -8,7 +8,8 @@ import type {
   Job,
   Client,
   ScrapeStatus,
-  Notification,
+  NotificationsResponse,
+  AlertConfigPhase2,
   AnalyticsData,
   CVProfile,
 } from "@/types";
@@ -115,22 +116,28 @@ export const proposals = {
   analytics: () => apiClient.get("/proposals/analytics"),
 };
 
-export const alerts = {
-  getConfig: () => apiClient.get("/alerts/config"),
-  updateConfig: (data: object) => apiClient.put("/alerts/config", data),
-  events: () => apiClient.get("/alerts/events"),
-};
-
-// Phase 2 stubs
+// ── Phase 2: Scrape status (LIVE) ─────────────────────────────────────────────
 export const scrape = {
-  status: () => apiClient.get<ScrapeStatus>("/scrape/status"),
-  trigger: () => apiClient.post<{ task_id: string }>("/scrape/trigger"),
+  status:  () => apiClient.get<ScrapeStatus>("/scrape/status"),
+  trigger: () => apiClient.post<{ task_id: string; queued: boolean }>("/scrape/trigger"),
+  history: () => apiClient.get("/scrape/history"),
 };
 
+// ── Phase 2: Notifications (LIVE) ─────────────────────────────────────────────
 export const notifications = {
-  list: () => apiClient.get<Notification[]>("/alerts"),
-  readAll: () => apiClient.post("/alerts/read-all"),
-  read: (id: string) => apiClient.post(`/alerts/read/${id}`),
+  list:         (unread_only?: boolean) =>
+    apiClient.get<NotificationsResponse>("/alerts/", { params: { unread_only } }),
+  read:         (id: string)            => apiClient.post(`/alerts/read/${id}`),
+  readAll:      ()                      => apiClient.post("/alerts/read-all"),
+  getConfig:    ()                      => apiClient.get<AlertConfigPhase2>("/alerts/config"),
+  updateConfig: (data: AlertConfigPhase2) => apiClient.put("/alerts/config", data),
+};
+
+export const alerts = {
+  // Legacy: AlertEvent-based endpoints
+  getConfig:    ()             => apiClient.get("/alerts/config"),
+  updateConfig: (data: object) => apiClient.put("/alerts/config", data),
+  events:       ()             => apiClient.get("/alerts/events"),
 };
 
 // Phase 4 stub
