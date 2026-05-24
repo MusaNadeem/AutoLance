@@ -1,39 +1,13 @@
 "use client";
 
-/**
- * BidRecommendation — Phase 1
- *
- * Renders the full bid recommendation object from the API.
- *
- * QA-11: All 5 fields visible when bid object is present.
- *         Strategy badge uses correct colour. Confidence bar is proportional.
- * QA-12: When bid is null, shows skeleton shape. No crash.
- */
-
 import { motion } from "framer-motion";
 import type { BidRecommendation as BidRecommendationType, BudgetType } from "@/types";
 
-// ── Strategy badge colours ────────────────────────────────────────────────────
-
 const STRATEGY_STYLES = {
-  Competitive: {
-    bg:     "bg-blue-500/20",
-    border: "border-blue-500",
-    text:   "text-blue-400",
-  },
-  Value: {
-    bg:     "bg-neon-lime/20",
-    border: "border-neon-lime",
-    text:   "text-neon-lime",
-  },
-  Premium: {
-    bg:     "bg-purple-500/20",
-    border: "border-purple-400",
-    text:   "text-purple-400",
-  },
+  Competitive: { bg: "bg-blue-500/20",    border: "border-blue-500",  text: "text-blue-400"    },
+  Value:       { bg: "bg-neon-lime/20",   border: "border-neon-lime", text: "text-neon-lime"   },
+  Premium:     { bg: "bg-purple-500/20",  border: "border-purple-400", text: "text-purple-400" },
 } as const;
-
-// ── Confidence colour ─────────────────────────────────────────────────────────
 
 function confidenceColour(value: number): string {
   if (value >= 0.70) return "bg-neon-lime";
@@ -41,14 +15,10 @@ function confidenceColour(value: number): string {
   return "bg-neon-pink";
 }
 
-// ── Props ─────────────────────────────────────────────────────────────────────
-
 interface BidRecommendationProps {
   bid: BidRecommendationType | null | undefined;
   budget_type?: BudgetType;
 }
-
-// ── Skeleton (QA-12) ──────────────────────────────────────────────────────────
 
 function BidSkeleton() {
   return (
@@ -63,10 +33,7 @@ function BidSkeleton() {
   );
 }
 
-// ── BidRecommendation ─────────────────────────────────────────────────────────
-
 export function BidRecommendation({ bid, budget_type }: BidRecommendationProps) {
-  // QA-12: null / undefined bid → graceful skeleton
   if (!bid) return <BidSkeleton />;
 
   const suffix = budget_type === "hourly" ? "/hr" : "";
@@ -77,36 +44,26 @@ export function BidRecommendation({ bid, budget_type }: BidRecommendationProps) 
 
   return (
     <div className="brutal-panel p-5 space-y-4">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <h3 className="font-display font-bold text-white uppercase tracking-wider text-sm">
           Bid Recommendation
         </h3>
-
-        {/* Strategy badge — QA-11 */}
         {strategyStyle && strategy && (
-          <span
-            className={`px-2.5 py-1 border text-xs font-bold font-mono uppercase tracking-wider
-              ${strategyStyle.bg} ${strategyStyle.border} ${strategyStyle.text}`}
-          >
+          <span className={`px-2.5 py-1 border text-xs font-bold font-mono uppercase tracking-wider ${strategyStyle.bg} ${strategyStyle.border} ${strategyStyle.text}`}>
             {strategy}
           </span>
         )}
       </div>
 
-      {/* Recommended bid — most visually prominent element — QA-11 */}
       {bid.recommended != null ? (
-        <div className={`text-4xl font-bold font-mono text-neon-lime`}>
+        <div className="text-4xl font-bold font-mono text-neon-lime">
           ${bid.recommended.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-          {suffix && (
-            <span className="text-xl font-mono text-slate-400 ml-1">{suffix}</span>
-          )}
+          {suffix && <span className="text-xl font-mono text-slate-400 ml-1">{suffix}</span>}
         </div>
       ) : (
         <div className="text-4xl font-bold font-mono text-slate-500">—</div>
       )}
 
-      {/* Confidence bar — QA-11 */}
       <div className="space-y-1">
         <div className="flex items-center justify-between">
           <span className="font-mono text-[10px] font-bold uppercase tracking-widest text-slate-400">
@@ -125,18 +82,12 @@ export function BidRecommendation({ bid, budget_type }: BidRecommendationProps) 
         </div>
       </div>
 
-      {/* Rationale text — QA-11 */}
       {bid.rationale && (
-        <p className="text-slate-400 text-sm leading-relaxed">
-          {bid.rationale}
-        </p>
+        <p className="text-slate-400 text-sm leading-relaxed">{bid.rationale}</p>
       )}
 
-      {/* Bid range — QA-11, de-emphasised */}
       {bid.range && (
-        <p className="text-slate-500 text-xs font-mono">
-          {bid.range}
-        </p>
+        <p className="text-slate-500 text-xs font-mono">{bid.range}</p>
       )}
     </div>
   );

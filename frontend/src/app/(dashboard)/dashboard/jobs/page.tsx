@@ -20,10 +20,10 @@ const tierConfig: Record<string, {
   badge: string;
   icon: React.ComponentType<{ size?: number; strokeWidth?: number }>;
 }> = {
-  high:   { label: "High Quality", badge: "badge-high",   icon: Shield },
-  medium: { label: "Medium",       badge: "badge-medium", icon: Shield },
-  risky:  { label: "Risky",        badge: "badge-risky",  icon: ShieldAlert },
-  avoid:  { label: "Avoid",        badge: "badge-avoid",  icon: ShieldX },
+  high: { label: "High Quality", badge: "badge-high", icon: Shield },
+  medium: { label: "Medium", badge: "badge-medium", icon: Shield },
+  risky: { label: "Risky", badge: "badge-risky", icon: ShieldAlert },
+  avoid: { label: "Avoid", badge: "badge-avoid", icon: ShieldX },
 };
 
 // ── Compact score bar for the list cards ─────────────────────────────────────
@@ -31,9 +31,9 @@ const tierConfig: Record<string, {
 function CompactScoreBar({ score }: { score: number }) {
   const colour =
     score >= 85 ? "bg-neon-lime" :
-    score >= 70 ? "bg-neon-cyan" :
-    score >= 50 ? "bg-neon-orange" :
-                  "bg-neon-pink";
+      score >= 70 ? "bg-neon-cyan" :
+        score >= 50 ? "bg-neon-orange" :
+          "bg-neon-pink";
   return (
     <div className="flex items-center gap-3">
       <div className="flex-1 h-3 bg-surface-800 border-2 border-border overflow-hidden">
@@ -163,9 +163,8 @@ export default function JobsPage() {
     <div className="flex h-full max-w-7xl mx-auto">
       {/* ── Job list ─────────────────────────────────────────────────────── */}
       <div
-        className={`flex-1 p-4 md:p-6 overflow-y-auto transition-all duration-300 ${
-          selectedJobId ? "lg:max-w-md xl:max-w-lg pr-4" : ""
-        }`}
+        className={`flex-1 p-4 md:p-6 overflow-y-auto transition-all duration-300 ${selectedJobId ? "lg:max-w-md xl:max-w-lg pr-4" : ""
+          }`}
       >
         <div className="flex items-center justify-between mb-8 border-b-2 border-border pb-4">
           <div>
@@ -198,8 +197,8 @@ export default function JobsPage() {
                 (job.score?.client_quality ?? 0) >= 0.75
                   ? "high"
                   : (job.score?.client_quality ?? 0) >= 0.50
-                  ? "medium"
-                  : "risky";
+                    ? "medium"
+                    : "risky";
 
               return (
                 <motion.div
@@ -211,9 +210,8 @@ export default function JobsPage() {
                     setSelectedJobId(job.id);
                     setCoverLetter(null);
                   }}
-                  className={`brutal-panel p-5 cursor-pointer transition-all duration-150 ${
-                    selectedJobId === job.id ? "border-neon-lime translate-x-2" : ""
-                  }`}
+                  className={`brutal-panel p-5 cursor-pointer transition-all duration-150 ${selectedJobId === job.id ? "border-neon-lime translate-x-2" : ""
+                    }`}
                 >
                   <div className="flex items-start justify-between gap-4 mb-4">
                     <h3 className="font-display font-bold text-white text-base leading-snug flex-1 uppercase tracking-wide">
