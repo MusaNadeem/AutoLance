@@ -1,6 +1,8 @@
 """
 Job Scorer Service
 Scores freelancer-job compatibility using Claude with 10-dimension analysis.
+Phase 1: client quality + aggregate score are computed deterministically after
+Claude returns, and the BidStrategyEngine populates all 5 bid columns.
 """
 import json
 from typing import Optional
@@ -16,6 +18,8 @@ from app.models import MatchScore
 from app.models.profile import FreelancerProfile
 from app.models.job import Job
 from app.models.client import Client
+from app.services.scoring import client_quality_score, aggregate_score
+from app.services.bid_strategy import bid_strategy_engine
 
 logger = structlog.get_logger()
 
@@ -68,7 +72,64 @@ class JobScorerService:
             temperature=0.05,
         )
 
-        # Upsert match score
+        # ── Phase 1: deterministic overrides ─────────────────────────────────
+        # 1. Compute client_quality_score from raw client metrics (not from Claude)
+        hire_rate     = float(client.hire_rate or 0) if client else 0.0
+        avg_rating    = float(client.average_rating or 0) if client else 0.0
+        total_hires   = int(client.total_hires or 0) if client else 0
+
+        # Estimate jobs_posted from total_hires ÷ hire_rate
+        if hire_rate > 0:
+            rate_fraction = hire_rate if hire_rate <= 1.0 else hire_rate / 100.0
+            jobs_posted = int(total_hires / rate_fraction)
+        else:
+            jobs_posted = total_hires
+
+        cq_score = client_quality_score(
+            hire_rate=hire_rate,
+            avg_rating=avg_rating,
+            jobs_posted=jobs_posted,
+        )
+
+        # 2. Compute aggregate overall score with configured weights
+        overall = aggregate_score(
+            skill_match=score_data.get("skill_match_score", 0),
+            roi=score_data.get("semantic_relevance_score", 0),
+            competition=score_data.get("competition_score", 0),
+            client_quality=cq_score,
+        )
+
+        # 3. Override Claude’s values with the deterministic results
+        score_data["client_quality_score"] = int(cq_score * 100)   # match_scores stores 0-100
+        score_data["overall_score"]        = int(overall * 100)
+
+        # 4. Persist client_quality_score + bid fields on the Job row
+        job.client_quality_score = cq_score
+
+        user_target_rate = float(
+            profile.inferred_hourly_rate_min
+            or profile.inferred_hourly_rate_max
+            or 45.0
+        )
+        bid = bid_strategy_engine.calculate(
+            budget_type=job.budget_type or "fixed",
+            budget_min=float(job.budget_min) if job.budget_min else None,
+            budget_max=float(job.budget_max) if job.budget_max else None,
+            hourly_rate_min=float(job.hourly_rate_min) if job.hourly_rate_min else None,
+            hourly_rate_max=float(job.hourly_rate_max) if job.hourly_rate_max else None,
+            user_target_rate=user_target_rate,
+            proposals_count=job.proposal_count or 0,
+            client_quality=cq_score,
+        )
+        job.bid_strategy  = bid["bid_strategy"]
+        job.bid_rationale = bid["bid_rationale"]
+        job.bid_confidence = bid["bid_confidence"]
+        job.bid_range_min = bid["bid_range_min"]
+        job.bid_range_max = bid["bid_range_max"]
+
+        await db.flush()  # persist job fields before creating MatchScore
+
+        # ── Upsert match score ────────────────────────────────────────────────
         existing = await db.execute(
             select(MatchScore).where(
                 MatchScore.user_id == user_id,

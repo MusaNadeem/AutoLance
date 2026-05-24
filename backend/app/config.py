@@ -4,7 +4,7 @@ Pydantic Settings v2 with full type validation and env loading
 """
 from functools import lru_cache
 from typing import List, Optional
-from pydantic import AnyHttpUrl, EmailStr, field_validator
+from pydantic import AnyHttpUrl, EmailStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -100,6 +100,37 @@ class Settings(BaseSettings):
 
     # ── Sentry ────────────────────────────────────────────
     SENTRY_DSN: Optional[str] = None
+
+    # ── SMTP (all optional — app starts without them) ─────
+    SMTP_HOST:       Optional[str] = None
+    SMTP_PORT:       Optional[int] = None
+    SMTP_USERNAME:   Optional[str] = None
+    SMTP_PASSWORD:   Optional[str] = None
+    SMTP_FROM_EMAIL: Optional[str] = None
+
+    # ── Alert threshold default ───────────────────────────
+    ALERT_THRESHOLD: float = 0.75
+
+    # ── Scoring weights (must sum to 1.0) ─────────────────
+    SCORE_WEIGHT_SKILL:           float = 0.35
+    SCORE_WEIGHT_ROI:             float = 0.30
+    SCORE_WEIGHT_COMPETITION:     float = 0.20
+    SCORE_WEIGHT_CLIENT_QUALITY:  float = 0.15
+
+    @model_validator(mode="after")
+    def _validate_score_weights(self) -> "Settings":
+        total = (
+            self.SCORE_WEIGHT_SKILL
+            + self.SCORE_WEIGHT_ROI
+            + self.SCORE_WEIGHT_COMPETITION
+            + self.SCORE_WEIGHT_CLIENT_QUALITY
+        )
+        if abs(total - 1.0) > 1e-5:
+            raise ValueError(
+                f"SCORE_WEIGHT_* values must sum to exactly 1.0, got {total:.6f}. "
+                "Check your .env file."
+            )
+        return self
 
 
 @lru_cache()

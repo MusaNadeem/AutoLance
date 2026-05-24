@@ -121,23 +121,52 @@ async def get_job(
 
 
 def _serialize_job(job: Job) -> dict:
-    return {
-        "id": str(job.id),
-        "upwork_job_id": job.upwork_job_id,
-        "title": job.title,
-        "description": job.description,
-        "url": job.url,
-        "budget_type": job.budget_type,
-        "budget_min": float(job.budget_min) if job.budget_min else None,
-        "budget_max": float(job.budget_max) if job.budget_max else None,
-        "required_skills": job.required_skills,
+    # ── Base fields (all original — never removed) ────────────────────────────
+    data: dict = {
+        "id":               str(job.id),
+        "upwork_job_id":    job.upwork_job_id,
+        "title":            job.title,
+        "description":      job.description,
+        "url":              job.url,
+        "budget_type":      job.budget_type,
+        "budget_min":       float(job.budget_min)       if job.budget_min       else None,
+        "budget_max":       float(job.budget_max)       if job.budget_max       else None,
+        "hourly_rate_min":  float(job.hourly_rate_min)  if job.hourly_rate_min  else None,
+        "hourly_rate_max":  float(job.hourly_rate_max)  if job.hourly_rate_max  else None,
+        "required_skills":  job.required_skills,
         "experience_level": job.experience_level,
-        "project_length": job.project_length,
-        "proposal_count": job.proposal_count,
-        "proposal_tier": job.proposal_tier,
-        "posted_at": job.posted_at,
-        "scraped_at": job.scraped_at,
+        "project_length":   job.project_length,
+        "proposal_count":   job.proposal_count,
+        "proposal_tier":    job.proposal_tier,
+        "posted_at":        job.posted_at,
+        "scraped_at":       job.scraped_at,
     }
+
+    # ── Phase 1: score object ─────────────────────────────────────────────────
+    cq = float(job.client_quality_score) if job.client_quality_score is not None else None
+    data["score"] = {
+        "client_quality": cq,
+    }
+
+    # ── Phase 1: bid object (null when job hasn't been scored yet) ────────────
+    if job.bid_strategy is not None:
+        r_min = float(job.bid_range_min) if job.bid_range_min is not None else None
+        r_max = float(job.bid_range_max) if job.bid_range_max is not None else None
+        recommended = round((r_min + r_max) / 2, 2) if (r_min and r_max) else None
+        data["bid"] = {
+            "recommended": recommended,
+            "range_min":   r_min,
+            "range_max":   r_max,
+            "range":       f"${r_min:.2f} \u2013 ${r_max:.2f} acceptable range"
+                           if (r_min and r_max) else None,
+            "strategy":    job.bid_strategy,
+            "rationale":   job.bid_rationale,
+            "confidence":  float(job.bid_confidence) if job.bid_confidence is not None else None,
+        }
+    else:
+        data["bid"] = None
+
+    return data
 
 
 def _serialize_client(client: Optional[Client]) -> Optional[dict]:

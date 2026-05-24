@@ -1,7 +1,7 @@
 """Job ORM Model"""
 import uuid
 from sqlalchemy import (
-    Boolean, Column, DateTime, ForeignKey, Integer,
+    Boolean, Column, DateTime, Float, ForeignKey, Integer,
     Numeric, String, Text, func
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
@@ -38,6 +38,14 @@ class Job(Base):
     embedding = Column(Vector(1536))
     raw_data = Column(JSONB)
     scrape_source = Column(String(100))
+
+    # ── Phase 1: Client Quality + Bid Strategy ────────────────────────────────
+    client_quality_score = Column(Float, nullable=True)            # 0.0 – 1.0
+    bid_strategy         = Column(String(20), nullable=True)       # Competitive | Value | Premium
+    bid_rationale        = Column(Text, nullable=True)
+    bid_confidence       = Column(Float, nullable=True)            # 0.0 – 1.0
+    bid_range_min        = Column(Numeric(12, 2), nullable=True)
+    bid_range_max        = Column(Numeric(12, 2), nullable=True)
 
     # Relationships
     client = relationship("Client", back_populates="jobs")

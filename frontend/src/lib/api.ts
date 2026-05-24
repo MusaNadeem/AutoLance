@@ -1,9 +1,20 @@
 /**
- * FreelanceRadar API Client
- * Typed HTTP client for all backend endpoints
+ * FreelanceIQ API Client
+ * Typed HTTP client — ALL components must call this file. Never raw fetch() in a component.
+ *
+ * Phase 1: GET /jobs and GET /jobs/:id are live.
+ * Phase 2+: scrape, notifications, analytics, cvProfile are stubbed with correct shapes.
  */
 
 import axios, { AxiosInstance } from "axios";
+import type {
+  Job,
+  Client,
+  ScrapeStatus,
+  Notification,
+  AnalyticsData,
+  CVProfile,
+} from "@/types";
 
 const CONFIGURED_API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -14,9 +25,9 @@ const CONFIGURED_API_URL = process.env.NEXT_PUBLIC_API_URL;
 const API_URL =
   CONFIGURED_API_URL ||
   (typeof window !== "undefined"
-    ? (window.location.port === "3000"
-        ? "http://localhost:8000"
-        : window.location.origin)
+    ? window.location.port === "3000"
+      ? "http://localhost:8000"
+      : window.location.origin
     : "http://backend:8000");
 
 export const apiClient: AxiosInstance = axios.create({
@@ -41,7 +52,6 @@ apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     if (error.response?.status === 401) {
-      // Clear tokens and redirect to login
       localStorage.removeItem("access_token");
       localStorage.removeItem("refresh_token");
       window.location.href = "/login";
@@ -50,7 +60,7 @@ apiClient.interceptors.response.use(
   }
 );
 
-// ── Auth ─────────────────────────────────────────────────
+// ── Auth ──────────────────────────────────────────────────
 export const auth = {
   register: (data: { email: string; password: string; full_name: string }) =>
     apiClient.post("/auth/register", data),
@@ -60,7 +70,7 @@ export const auth = {
   refresh: (token: string) => apiClient.post("/auth/refresh", { refresh_token: token }),
 };
 
-// ── CV ─────────────────────────────────────────────────
+// ── CV ────────────────────────────────────────────────────
 export const cv = {
   upload: (file: File) => {
     const form = new FormData();
@@ -73,16 +83,20 @@ export const cv = {
   get: (id: string) => apiClient.get(`/cv/${id}`),
 };
 
-// ── Jobs ─────────────────────────────────────────────────
+// ── Jobs — Phase 1 LIVE ───────────────────────────────────
 export const jobs = {
+  /** Returns paginated job list. Phase 4 adds filter params. */
   list: (params?: {
     page?: number;
     limit?: number;
     budget_type?: string;
     experience_level?: string;
     proposal_tier?: string;
-  }) => apiClient.get("/jobs/", { params }),
-  get: (id: string) => apiClient.get(`/jobs/${id}`),
+  }) => apiClient.get<{ jobs: Job[] }>("/jobs/", { params }),
+
+  /** Returns a single job with full bid object and score. */
+  get: (id: string) => apiClient.get<Job & { client?: Client }>(`/jobs/${id}`),
+
   triggerScrape: () => apiClient.post("/jobs/trigger-scrape"),
   stats: () => apiClient.get("/jobs/stats"),
 };
@@ -113,13 +127,36 @@ export const proposals = {
   analytics: () => apiClient.get("/proposals/analytics"),
 };
 
-// ── Alerts ─────────────────────────────────────────────────
+// ── Alerts ────────────────────────────────────────────────
 export const alerts = {
   getConfig: () => apiClient.get("/alerts/config"),
   updateConfig: (data: object) => apiClient.put("/alerts/config", data),
   events: () => apiClient.get("/alerts/events"),
 };
 
-// ── SWR Fetcher ──────────────────────────────────────────
-export const fetcher = (url: string) => apiClient.get(url).then((res) => res.data);
+// ── Scrape Status — Phase 2 stub ──────────────────────────
+export const scrape = {
+  status: () => apiClient.get<ScrapeStatus>("/scrape/status"),
+  trigger: () => apiClient.post<{ task_id: string }>("/scrape/trigger"),
+};
 
+// ── Notifications — Phase 2 stub ─────────────────────────
+export const notifications = {
+  list: () => apiClient.get<Notification[]>("/alerts"),
+  readAll: () => apiClient.post("/alerts/read-all"),
+  read: (id: string) => apiClient.post(`/alerts/read/${id}`),
+};
+
+// ── Analytics — Phase 4 stub ──────────────────────────────
+export const analytics = {
+  get: () => apiClient.get<AnalyticsData>("/analytics"),
+};
+
+// ── CV Profile — Phase 3 stub ─────────────────────────────
+export const cvProfile = {
+  get: () => apiClient.get<CVProfile>("/cv/profile"),
+  update: (data: Partial<CVProfile>) => apiClient.put<CVProfile>("/cv/profile", data),
+};
+
+// ── SWR Fetcher ───────────────────────────────────────────
+export const fetcher = (url: string) => apiClient.get(url).then((res) => res.data);
