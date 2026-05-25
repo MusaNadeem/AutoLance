@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   Target, LayoutDashboard, Briefcase, FileText,
-  BarChart3, Bell, Settings, Upload, LogOut, Menu,
+  BarChart3, Bell, Settings, Upload, LogOut, Menu, User,
 } from "lucide-react";
 import { useState } from "react";
 import { StatusBar } from "@/components/layout/StatusBar";
@@ -18,6 +18,7 @@ const navItems = [
   { href: "/dashboard/proposals", label: "Proposals",     icon: FileText },
   { href: "/dashboard/analytics", label: "Analytics",     icon: BarChart3 },
   { href: "/dashboard/alerts",    label: "Alerts",        icon: Bell },
+  { href: "/dashboard/profile",   label: "Profile",       icon: User },
   { href: "/dashboard/settings",  label: "Settings",      icon: Settings },
 ];
 

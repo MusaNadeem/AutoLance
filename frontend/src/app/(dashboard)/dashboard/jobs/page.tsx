@@ -7,6 +7,7 @@ import { fetcher } from "@/lib/api";
 import type { Job } from "@/types";
 import { ScoreBadge } from "@/components/jobs/ScoreBadge";
 import { BidRecommendation } from "@/components/jobs/BidRecommendation";
+import { ProposalPanel } from "@/components/jobs/ProposalPanel";
 import {
   Filter, Clock, Users, DollarSign,
   Zap, Shield, ShieldAlert, ShieldX, X,
@@ -159,15 +160,7 @@ export default function JobsPage() {
   );
   const selectedJob: Job | undefined = jobDetails ?? jobs.find((j) => j.id === selectedJobId);
 
-  const handleGenerate = () => {
-    setGenerating(true);
-    setTimeout(() => {
-      setGenerating(false);
-      setCoverLetter(
-        `I noticed you're building a high-throughput data pipeline — this is exactly the kind of challenge I've spent the last 3 years optimizing.\n\nA few specifics I'd bring:\n• Scalable architecture\n• High performance execution\n• Reliable delivery\n\nI'd love to dig into your current bottlenecks.\n\nBest,\nAlex`
-      );
-    }, 2000);
-  };
+  // handleGenerate replaced by ProposalPanel (Phase 3)
 
   return (
     <div className="flex h-full max-w-7xl mx-auto">
@@ -221,7 +214,6 @@ export default function JobsPage() {
                   transition={{ delay: i * 0.05, duration: 0.25, ease: "easeOut" }}
                   onClick={() => {
                     setSelectedJobId(job.id);
-                    setCoverLetter(null);
                   }}
                   className={`brutal-panel p-5 cursor-pointer transition-all duration-150 ${selectedJobId === job.id ? "border-neon-lime translate-x-2" : ""
                     }`}
@@ -367,57 +359,14 @@ export default function JobsPage() {
                 </div>
               )}
 
-              {/* Cover letter section */}
-              {!coverLetter ? (
-                <div className="space-y-3 mt-4">
-                  <button
-                    onClick={handleGenerate}
-                    disabled={generating}
-                    className="btn-primary w-full flex items-center justify-center gap-3 py-4"
-                  >
-                    {generating ? (
-                      <>
-                        <Zap size={18} className="animate-pulse" strokeWidth={2.5} />
-                        GENERATING...
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles size={18} strokeWidth={2.5} />
-                        GENERATE AI COVER LETTER
-                      </>
-                    )}
-                  </button>
-                  {selectedJob.url && (
-                    <a
-                      href={selectedJob.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="btn-ghost w-full flex items-center justify-center gap-2 py-3 text-sm"
-                    >
-                      <ExternalLink size={16} strokeWidth={2.5} />
-                      OPEN ON UPWORK
-                    </a>
-                  )}
-                </div>
-              ) : (
-                <div className="border-2 border-neon-lime p-5 bg-surface-800 relative">
-                  <h3 className="font-display font-bold text-white mb-4 uppercase tracking-wider flex items-center gap-3">
-                    <Sparkles size={18} className="text-neon-lime" strokeWidth={2.5} />
-                    AI Cover Letter
-                  </h3>
-                  <div className="bg-surface-900 border-2 border-border p-4 mb-4">
-                    <p className="text-slate-300 text-sm leading-relaxed whitespace-pre-wrap font-mono">
-                      {coverLetter}
-                    </p>
-                  </div>
-                  <div className="flex gap-4">
-                    <button className="btn-primary flex-1">COPY &amp; APPLY</button>
-                    <button onClick={handleGenerate} className="btn-ghost">
-                      REGENERATE
-                    </button>
-                  </div>
-                </div>
-              )}
+              {/* Phase 3: ProposalPanel — tone selector, char counter, copy, Open on Upwork */}
+              <div className="brutal-panel p-5">
+                <h3 className="font-display font-bold text-white mb-4 uppercase tracking-wider flex items-center gap-3">
+                  <Sparkles size={18} className="text-neon-lime" strokeWidth={2.5} />
+                  AI Proposal
+                </h3>
+                <ProposalPanel job={selectedJob} />
+              </div>
             </div>
           </motion.div>
         )}

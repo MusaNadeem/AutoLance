@@ -24,7 +24,16 @@ export default function LoginPage() {
       const { access_token, refresh_token } = res.data;
       localStorage.setItem("access_token", access_token);
       if (refresh_token) localStorage.setItem("refresh_token", refresh_token);
-      window.location.href = "/dashboard";
+
+      // Phase 3: redirect to /onboarding if profile has no confirmed skills
+      try {
+        const profileRes = await apiClient.get("/cv/profile");
+        const skills = profileRes.data?.skills ?? [];
+        window.location.href = skills.length === 0 ? "/onboarding" : "/dashboard";
+      } catch {
+        // No profile yet (404) → onboarding
+        window.location.href = "/onboarding";
+      }
     } catch (err: unknown) {
       const e = err as { response?: { data?: { detail?: string } } };
       setError(e?.response?.data?.detail || "Invalid email or password");

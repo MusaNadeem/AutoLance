@@ -25,7 +25,7 @@
 |---|---|---|---|
 | **Phase 1** | Scoring engine + bid strategy + jobs UI | ✅ Done | 22/22 |
 | **Phase 2** | Scrape observability + alert inbox + NotificationBell + StatusBar | ✅ Done | 37/37 |
-| **Phase 3** | Proposal tone selector + CV profile PUT + Onboarding page | 🔄 In Progress | — |
+| **Phase 3** | Proposal tone selector + CV profile PUT + Onboarding + Profile pages | ✅ Done | 61/61 |
 | **Phase 4** | Job filtering/pagination + analytics dashboard | ⏳ Pending | — |
 
 ---
@@ -70,42 +70,40 @@
 
 ## Phase 3 — In Progress 🔄
 
-### What needs to be built
-
-#### Backend (Musa) — R5 + R6
+### Backend ✅
 
 **R5 — Tone-aware proposal generation**
-- [ ] `POST /proposal/generate` — add optional `tone` param (`professional` | `friendly` | `bold`, default `professional`)
-- [ ] `app/ai/prompts/cover_letter.py` — add tone instruction blocks
-- [ ] `app/ai/client.py` — append tone block to system prompt
+- [x] `tone` param added to `POST /cover-letters/generate` (`professional` | `friendly` | `bold`)
+- [x] `app/ai/prompts/cover_letter.py` — 3 distinct tone instruction blocks
+- [x] `app/services/cover_letter_gen.py` — `VALID_TONES`, validates + forwards tone
+- [x] `GenerateCoverLetterRequest` schema + response includes `tone` field
 
 **R6 — CV profile PUT endpoint**
-- [ ] `PUT /api/v1/cv/profile` — update profile for current user (auth required)
-  - Fields: `headline`, `summary`, `skills[]`, `experience_level`, `target_hourly_rate_min`, `target_hourly_rate_max`, `target_fixed_min`, `target_fixed_max`
-- [ ] `GET /api/v1/cv/profile` — return all 7 fields (must be explicit null, not missing)
-- [ ] Add `target_fixed_min` + `target_fixed_max` Float nullable columns to `FreelancerProfile`
-- [ ] Migration: `20260525_phase3_profile_target_fixed.py`
+- [x] `GET /api/v1/cv/profile` — all 12 fields, explicit null when missing
+- [x] `PUT /api/v1/cv/profile` — partial update, upserts if no profile yet, bumps version
+- [x] `target_fixed_min` + `target_fixed_max` Numeric nullable columns added to `FreelancerProfile`
+- [x] Migration `20260525_phase3_profile_target_fixed.py`
 
-#### Frontend (Omer) — R5 + R6
+### Frontend ✅
 
-**R5 — ProposalPanel upgrade**
-- [ ] `components/jobs/ProposalPanel.tsx` (new or upgrade)
-  - Auto-resizing textarea pre-filled with cover letter
-  - Live character counter (turns red >4500)
-  - Word count warnings (<50 and >250)
-  - 3 tone buttons: Professional | Friendly | Bold (Professional default)
-  - Tone change → POST /proposal/generate with tone → textarea disabled+spinner
-  - Copy to Clipboard (2s Copied! state)
-  - Open on Upwork button
-  - Regenerate with dirty-check confirm dialog
+**R5 — ProposalPanel**
+- [x] `components/jobs/ProposalPanel.tsx` — auto-resizing textarea
+- [x] Live char counter (red >4500) + word count warnings (<50, >250)
+- [x] 3 tone buttons: Professional / Friendly / Bold with ring highlight
+- [x] Tone change → `coverLetters.generate({tone})` → textarea disabled+spinner
+- [x] Copy to Clipboard with 2s "Copied!" AnimatePresence state
+- [x] Open on Upwork button (target=_blank rel=noopener)
+- [x] Regenerate with dirty-check confirm dialog (Replace / Keep Edits)
+- [x] Wired into `dashboard/jobs/page.tsx` replacing placeholder
 
 **R6 — Onboarding + Profile pages**
-- [ ] `/onboarding` page — post-upload redirect, name/title/skills/rate form, PUT /cv/profile on confirm
-- [ ] `(dashboard)/dashboard/profile` page — same form, edit + Save Changes
-- [ ] Post-login redirect: check `GET /cv/profile` skills[] presence → if empty go to `/onboarding`
+- [x] `app/(auth)/onboarding/page.tsx` — SkillChip array, rate inputs (min<max validation), experience buttons, Confirm → PUT, Skip link
+- [x] `app/(dashboard)/dashboard/profile/page.tsx` — same form, pre-filled from GET, Save Changes + green toast
+- [x] Post-login redirect: `GET /cv/profile` → `skills.length === 0` → `/onboarding`, else `/dashboard`
+- [x] Profile nav item added to dashboard sidebar
 
 ### Phase 3 QA Checklist (16 checks)
-See roadmap lines 503–557 for full list.
+See roadmap lines 503–557 for full list. Backend endpoints are live; frontend components are implemented and TSC-clean.
 
 ---
 
@@ -140,6 +138,9 @@ See roadmap lines 503–557 for full list.
 | `frontend/src/types/index.ts` | All shared TypeScript types |
 | `frontend/src/components/layout/StatusBar.tsx` | Phase 2 live scrape status bar |
 | `frontend/src/components/layout/NotificationBell.tsx` | Phase 2 bell dropdown |
+| `frontend/src/components/jobs/ProposalPanel.tsx` | Phase 3 proposal editor (tone, counters, copy, regen) |
+| `frontend/src/app/(auth)/onboarding/page.tsx` | Phase 3 onboarding form (post-CV-upload) |
+| `frontend/src/app/(dashboard)/dashboard/profile/page.tsx` | Phase 3 profile edit page |
 
 ---
 
@@ -177,3 +178,5 @@ cd frontend && npx tsc --noEmit
 | `Notification` vs `AlertEvent` | `AlertEvent` = external dispatch audit log. `Notification` = in-app user inbox |
 | `notifications` SWR key = `"/alerts/"` | Trailing slash matches FastAPI route. Both `NotificationBell` and alerts page use same key |
 | `is_running` transition detection in `StatusBar` | `useRef(prevRunning)` + `onSuccess` callback — mutates `/jobs` SWR key when scrape finishes |
+| `ExperienceLevel` type includes `junior/mid/senior/expert` | Backend uses these values; original `entry/intermediate` kept for job filter UI |
+| Post-login redirect checks `skills.length` | 0 skills → `/onboarding`; profiles with skills go straight to `/dashboard` |

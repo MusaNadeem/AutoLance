@@ -14,7 +14,7 @@ export type ProposalTier       = "low" | "medium" | "high" | "very_high";
 export type BidStrategy        = "Competitive" | "Value" | "Premium";
 export type UserRole           = "admin" | "user";
 export type SubscriptionTier   = "free" | "pro" | "enterprise";
-export type ExperienceLevel    = "entry" | "intermediate" | "expert";
+export type ExperienceLevel    = "entry" | "intermediate" | "expert" | "junior" | "mid" | "senior";
 export type CoverLetterStyle   = "formal" | "conversational" | "technical" | "brief";
 export type ProposalStatus     = "drafted" | "sent" | "replied" | "interview" | "won" | "lost";
 export type QualityTier        = "high" | "medium" | "risky" | "avoid";
@@ -97,21 +97,28 @@ export interface AlertConfigPhase2 {
 
 // ── Phase 3 stub ──────────────────────────────────────────────────────────────
 
+export interface SkillItem {
+  name: string;
+  level: string;
+  years: number;
+}
+
 export interface CVProfile {
   id: string;
-  headline?: string;
-  summary?: string;
-  skills?: { name: string; level: string; years: number }[];
-  experience_level?: ExperienceLevel;
-  niche?: string;
-  specializations?: string[];
-  communication_tone?: string;
-  inferred_hourly_rate_min?: number;
-  inferred_hourly_rate_max?: number;
-  preferred_project_types?: string[];
-  preferred_industries?: string[];
-  last_analyzed_at?: string;
+  headline?: string | null;
+  summary?: string | null;
+  skills?: SkillItem[] | null;
+  experience_level?: ExperienceLevel | null;
+  niche?: string | null;
+  inferred_hourly_rate_min?: number | null;
+  inferred_hourly_rate_max?: number | null;
+  target_fixed_min?: number | null;     // Phase 3: user-confirmed min fixed project ($)
+  target_fixed_max?: number | null;     // Phase 3: user-confirmed max fixed project ($)
+  last_analyzed_at?: string | null;
+  profile_version?: number;
 }
+
+export type ProposalTone = "professional" | "friendly" | "bold";
 
 // ── Phase 4 stub ──────────────────────────────────────────────────────────────
 

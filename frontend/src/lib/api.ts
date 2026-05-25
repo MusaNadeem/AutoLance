@@ -96,6 +96,7 @@ export const coverLetters = {
   generate: (data: {
     job_id: string;
     style?: string;
+    tone?: string;           // Phase 3: professional | friendly | bold
     custom_instructions?: string;
   }) => apiClient.post("/cover-letters/generate", data),
   list: () => apiClient.get("/cover-letters/"),
