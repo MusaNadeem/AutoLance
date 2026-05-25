@@ -12,15 +12,40 @@ const benefits = [
   "Personalized cover letters generated instantly",
 ];
 
+import { apiClient } from "@/lib/api";
+
 export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
-  const [form, setForm] = useState({ name: "", email: "", password: "" });
+  const [error, setError]     = useState("");
+  const [form, setForm]       = useState({ name: "", email: "", password: "" });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    // In a real app, you would call your API here
-    setTimeout(() => { setLoading(false); window.location.href = "/dashboard/cv"; }, 1800);
+    setError("");
+    try {
+      // 1. Register
+      await apiClient.post("/auth/register", {
+        email:     form.email,
+        password:  form.password,
+        full_name: form.name,
+      });
+      // 2. Log in to get tokens
+      const loginRes = await apiClient.post("/auth/login", {
+        email:    form.email,
+        password: form.password,
+      });
+      const { access_token, refresh_token } = loginRes.data;
+      localStorage.setItem("access_token", access_token);
+      if (refresh_token) localStorage.setItem("refresh_token", refresh_token);
+      // 3. New accounts always have no profile → onboarding
+      window.location.href = "/onboarding";
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { detail?: string } } };
+      setError(e?.response?.data?.detail || "Registration failed. Try a different email.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -61,6 +86,11 @@ export default function RegisterPage() {
         <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 }} className="brutal-panel p-8">
           <h2 className="text-2xl font-display font-bold text-white mb-8 uppercase tracking-wide">Create your account</h2>
           <form onSubmit={handleSubmit} className="space-y-6">
+            {error && (
+              <div className="px-4 py-3 border-2 border-neon-pink bg-neon-pink/10 text-neon-pink font-mono text-sm">
+                {error}
+              </div>
+            )}
             <div>
               <label className="block text-sm font-mono font-bold text-slate-300 mb-2 uppercase tracking-wide">Full Name</label>
               <input
