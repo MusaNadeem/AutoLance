@@ -19,9 +19,9 @@ function relativeTime(iso: string): string {
 }
 
 function scoreColor(score: number): string {
-  if (score >= 0.85) return "text-neon-lime";
-  if (score >= 0.70) return "text-neon-cyan";
-  if (score >= 0.50) return "text-neon-orange";
+  if (score >= 85) return "text-neon-lime";
+  if (score >= 70) return "text-neon-cyan";
+  if (score >= 50) return "text-neon-orange";
   return "text-neon-pink";
 }
 
@@ -149,7 +149,7 @@ export function NotificationBell() {
                         {n.job_title}
                       </span>
                       <span className={`font-mono text-xs font-black shrink-0 ${scoreColor(n.score)}`}>
-                        {Math.round(n.score * 100)}%
+                        {n.score ?? 0}
                       </span>
                     </div>
                     <div className="flex items-center justify-between mt-1.5">

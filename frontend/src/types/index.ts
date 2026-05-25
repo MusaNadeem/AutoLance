@@ -74,7 +74,7 @@ export interface Notification {
   id: string;
   job_id?: string | null;
   job_title: string;
-  /** Aggregate score 0.0-1.0 */
+  /** Aggregate match score 0-100 integer (matches backend Integer column) */
   score: number;
   message?: string | null;
   is_read: boolean;

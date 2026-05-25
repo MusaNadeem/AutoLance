@@ -19,9 +19,9 @@ function relativeTime(iso: string): string {
 }
 
 function scoreColor(score: number): { text: string; bg: string; border: string } {
-  if (score >= 0.85) return { text: "text-neon-lime",   bg: "bg-neon-lime/10",   border: "border-neon-lime" };
-  if (score >= 0.70) return { text: "text-neon-cyan",   bg: "bg-neon-cyan/10",   border: "border-neon-cyan" };
-  if (score >= 0.50) return { text: "text-neon-orange", bg: "bg-neon-orange/10", border: "border-neon-orange" };
+  if (score >= 85) return { text: "text-neon-lime",   bg: "bg-neon-lime/10",   border: "border-neon-lime" };
+  if (score >= 70) return { text: "text-neon-cyan",   bg: "bg-neon-cyan/10",   border: "border-neon-cyan" };
+  if (score >= 50) return { text: "text-neon-orange", bg: "bg-neon-orange/10", border: "border-neon-orange" };
   return              { text: "text-neon-pink",   bg: "bg-neon-pink/10",   border: "border-neon-pink" };
 }
 
@@ -136,7 +136,7 @@ export default function AlertsPage() {
           <AnimatePresence mode="popLayout">
             {filtered.map((n, i) => {
               const colors = scoreColor(n.score);
-              const scoreLabel = `${Math.round(n.score * 100)}%`;
+              const scoreLabel = `${n.score ?? 0}`;
 
               return (
                 <motion.div

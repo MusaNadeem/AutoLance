@@ -417,3 +417,89 @@ async def alert_history(
         }
         for e, j, m in rows
     ]
+
+
+# ── Phase 2: In-app Notification inbox ───────────────────────────────────────
+
+@alerts_router.get("/")
+async def list_notifications(
+    unread_only: bool = Query(False),
+    limit: int = Query(50, ge=1, le=200),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    GET /api/v1/alerts/
+    Response: { unread_count: int, notifications: [...] }
+    Polled by NotificationBell (60s) and alerts page.
+    """
+    from app.models.notification import Notification
+
+    query = select(Notification).where(Notification.user_id == current_user.id)
+    if unread_only:
+        query = query.where(Notification.is_read == False)  # noqa: E712
+    query = query.order_by(desc(Notification.created_at)).limit(limit)
+
+    result = await db.execute(query)
+    notifs = result.scalars().all()
+
+    unread_count = sum(1 for n in notifs if not n.is_read)
+
+    return {
+        "unread_count": unread_count,
+        "notifications": [
+            {
+                "id":         str(n.id),
+                "job_id":     str(n.job_id) if n.job_id else None,
+                "job_title":  n.job_title,
+                "score":      n.score,
+                "message":    n.message,
+                "is_read":    n.is_read,
+                "created_at": n.created_at.isoformat() if n.created_at else None,
+            }
+            for n in notifs
+        ],
+    }
+
+
+@alerts_router.post("/read/{notification_id}", status_code=204)
+async def mark_notification_read(
+    notification_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """POST /api/v1/alerts/read/{id} — mark single notification read."""
+    from app.models.notification import Notification
+
+    result = await db.execute(
+        select(Notification).where(
+            Notification.id == uuid.UUID(notification_id),
+            Notification.user_id == current_user.id,
+        )
+    )
+    notif = result.scalar_one_or_none()
+    if notif:
+        notif.is_read = True
+
+
+@alerts_router.post("/read-all", status_code=204)
+async def mark_all_notifications_read(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    POST /api/v1/alerts/read-all
+    Mark all unread notifications for current user as read.
+    """
+    from app.models.notification import Notification
+    from sqlalchemy import update as _update
+
+    await db.execute(
+        _update(Notification)
+        .where(
+            Notification.user_id == current_user.id,
+            Notification.is_read == False,  # noqa: E712
+        )
+        .values(is_read=True)
+    )
+
