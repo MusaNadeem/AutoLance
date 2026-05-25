@@ -36,7 +36,7 @@ export default function AlertsPage() {
   const [filter, setFilter] = useState<Filter>("all");
   const [markingAll, setMarkingAll] = useState(false);
 
-  const { data, mutate } = useSWR<NotificationsResponse>(
+  const { data, mutate, isLoading } = useSWR<NotificationsResponse>(
     "/alerts/",
     fetcher,
     { refreshInterval: 60_000, revalidateOnFocus: false }
@@ -81,12 +81,12 @@ export default function AlertsPage() {
           </h1>
           <p className="text-slate-400 font-mono text-xs mt-2 uppercase tracking-widest flex items-center gap-2">
             <Bell size={12} className="text-neon-pink" />
-            {unreadCount > 0
+            {isLoading ? "Loading..." : unreadCount > 0
               ? `${unreadCount} unread notification${unreadCount !== 1 ? "s" : ""}`
               : "All caught up"}
           </p>
         </div>
-        {unreadCount > 0 && (
+        {!isLoading && unreadCount > 0 && (
           <motion.button
             whileTap={{ scale: 0.96 }}
             onClick={handleMarkAllRead}
@@ -120,8 +120,23 @@ export default function AlertsPage() {
         ))}
       </div>
 
-      {/* Notifications list */}
-      {filtered.length === 0 ? (
+      {/* Notifications list or skeleton */}
+      {isLoading ? (
+        <div className="space-y-2">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="brutal-panel p-4 animate-pulse">
+              <div className="flex items-start gap-4">
+                <div className="w-10 h-8 bg-surface-700 shrink-0" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-4 bg-surface-700 rounded w-3/4" />
+                  <div className="h-3 bg-surface-700 rounded w-1/2" />
+                  <div className="h-3 bg-surface-700 rounded w-1/4" />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-24 text-slate-600 border-2 border-border bg-surface-800">
           <BellOff size={36} strokeWidth={1.5} className="mb-4 opacity-40" />
           <p className="font-mono text-sm uppercase tracking-widest">

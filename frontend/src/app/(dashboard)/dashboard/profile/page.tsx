@@ -65,7 +65,7 @@ export default function ProfilePage() {
         setFixedMin(p.target_fixed_min?.toString() ?? "");
         setFixedMax(p.target_fixed_max?.toString() ?? "");
       })
-      .catch(() => {})
+      .catch(() => setError("Could not load your profile. Please refresh."))
       .finally(() => setLoading(false));
   }, []);
 
@@ -113,8 +113,23 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-24">
-        <Loader2 size={28} className="animate-spin text-neon-lime" />
+      <div className="max-w-2xl mx-auto space-y-6 animate-pulse">
+        {/* Header skeleton */}
+        <div className="flex items-center justify-between border-b-2 border-border pb-4">
+          <div className="space-y-2">
+            <div className="h-8 w-32 bg-surface-700" />
+            <div className="h-3 w-56 bg-surface-700" />
+          </div>
+          <div className="h-9 w-28 bg-surface-700" />
+        </div>
+        {/* Form skeleton */}
+        <div className="brutal-panel p-8 space-y-8">
+          <div className="space-y-2"><div className="h-3 w-40 bg-surface-700" /><div className="h-10 bg-surface-700" /></div>
+          <div className="space-y-2"><div className="h-3 w-24 bg-surface-700" /><div className="h-24 bg-surface-700" /></div>
+          <div className="space-y-3"><div className="h-3 w-36 bg-surface-700" /><div className="grid grid-cols-4 gap-2">{[0,1,2,3].map(i=><div key={i} className="h-12 bg-surface-700" />)}</div></div>
+          <div className="space-y-2"><div className="h-3 w-20 bg-surface-700" /><div className="h-10 bg-surface-700" /></div>
+          <div className="h-14 bg-surface-700" />
+        </div>
       </div>
     );
   }
