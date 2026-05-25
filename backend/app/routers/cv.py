@@ -172,30 +172,6 @@ async def list_cvs(
     ]
 
 
-@router.get("/{cv_id}")
-async def get_cv(
-    cv_id: str,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    result = await db.execute(
-        select(CVDocument).where(
-            CVDocument.id == uuid.UUID(cv_id),
-            CVDocument.user_id == current_user.id,
-        )
-    )
-    cv = result.scalar_one_or_none()
-    if not cv:
-        raise HTTPException(status_code=404, detail="CV not found")
-    return {
-        "id": str(cv.id),
-        "file_name": cv.file_name,
-        "parsing_status": cv.parsing_status,
-        "parsed_data": cv.parsed_data,
-        "ocr_used": cv.ocr_used,
-        "created_at": cv.created_at,
-    }
-
 
 # ────────────────────────────────────────────────────────────────
 # PHASE 3: GET + PUT /cv/profile
@@ -298,4 +274,29 @@ async def update_cv_profile(
     profile.profile_version = (profile.profile_version or 1) + 1
 
     return _serialize_profile(profile)
+
+
+@router.get("/{cv_id}")
+async def get_cv(
+    cv_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(CVDocument).where(
+            CVDocument.id == uuid.UUID(cv_id),
+            CVDocument.user_id == current_user.id,
+        )
+    )
+    cv = result.scalar_one_or_none()
+    if not cv:
+        raise HTTPException(status_code=404, detail="CV not found")
+    return {
+        "id": str(cv.id),
+        "file_name": cv.file_name,
+        "parsing_status": cv.parsing_status,
+        "parsed_data": cv.parsed_data,
+        "ocr_used": cv.ocr_used,
+        "created_at": cv.created_at,
+    }
 
