@@ -4,7 +4,7 @@ from datetime import datetime
 from sqlalchemy import Boolean, Column, DateTime, String, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
-from app.database import Base
+from app.database import Base  # noqa: F401 — imported for relationship type resolution
 
 
 class User(Base):
@@ -32,6 +32,7 @@ class User(Base):
     alert_configs = relationship("AlertConfig", back_populates="user")
     alert_events = relationship("AlertEvent", back_populates="user")
     activity_logs = relationship("ActivityLog", back_populates="user")
+    notifications = relationship("Notification", back_populates="user")
 
     def __repr__(self):
         return f"<User {self.email}>"

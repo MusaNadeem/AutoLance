@@ -1,5 +1,6 @@
 """Jobs Router — Browse and filter scraped jobs"""
 from typing import Optional
+from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, desc
@@ -9,6 +10,7 @@ from app.database import get_db
 from app.models.user import User
 from app.models.job import Job
 from app.models.client import Client
+from app.models import MatchScore
 from app.middleware.auth import get_current_user
 from app.workers.scrape_tasks import manual_scrape
 
@@ -47,10 +49,28 @@ async def list_jobs(
     result = await db.execute(query)
     jobs = result.scalars().all()
 
+    # ── Batch-fetch current user's latest match score per job ─────────────────
+    # Avoids N+1 queries. We only need the most-recent score per job.
+    match_scores_by_job: dict[UUID, MatchScore] = {}
+    if jobs:
+        job_ids = [j.id for j in jobs]
+        ms_result = await db.execute(
+            select(MatchScore)
+            .where(
+                MatchScore.user_id == current_user.id,
+                MatchScore.job_id.in_(job_ids),
+            )
+            .order_by(desc(MatchScore.scored_at))
+        )
+        for ms in ms_result.scalars().all():
+            # Keep only the latest score per job
+            if ms.job_id not in match_scores_by_job:
+                match_scores_by_job[ms.job_id] = ms
+
     return {
         "page": page,
         "limit": limit,
-        "jobs": [_serialize_job(j) for j in jobs],
+        "jobs": [_serialize_job(j, match_scores_by_job.get(j.id)) for j in jobs],
     }
 
 
@@ -117,10 +137,22 @@ async def get_job(
         )
         client = client_result.scalar_one_or_none()
 
-    return {**_serialize_job(job), "client": _serialize_client(client)}
+    # Fetch latest match score for current user
+    ms_result = await db.execute(
+        select(MatchScore)
+        .where(
+            MatchScore.user_id == current_user.id,
+            MatchScore.job_id == job.id,
+        )
+        .order_by(desc(MatchScore.scored_at))
+        .limit(1)
+    )
+    match_score = ms_result.scalar_one_or_none()
+
+    return {**_serialize_job(job, match_score), "client": _serialize_client(client)}
 
 
-def _serialize_job(job: Job) -> dict:
+def _serialize_job(job: Job, match_score: Optional[MatchScore] = None) -> dict:
     # ── Base fields (all original — never removed) ────────────────────────────
     data: dict = {
         "id":               str(job.id),
@@ -142,9 +174,21 @@ def _serialize_job(job: Job) -> dict:
         "scraped_at":       job.scraped_at,
     }
 
-    # ── Phase 1: score object ─────────────────────────────────────────────────
+    # ── Phase 1: score object — all 4 signals ────────────────────────────────
+    # client_quality comes from the Job row (computed at ingestion time).
+    # skill_match, roi, competition come from the user's latest MatchScore.
+    # All values are normalised to 0.0–1.0 for the frontend.
     cq = float(job.client_quality_score) if job.client_quality_score is not None else None
+
+    def _pct_to_ratio(v) -> Optional[float]:
+        """MatchScore stores 0-100 integers; convert to 0.0-1.0 for API."""
+        return round(float(v) / 100.0, 4) if v is not None else None
+
     data["score"] = {
+        "overall":        _pct_to_ratio(match_score.overall_score)         if match_score else None,
+        "skill_match":    _pct_to_ratio(match_score.skill_match_score)     if match_score else None,
+        "roi":            _pct_to_ratio(match_score.semantic_relevance_score) if match_score else None,
+        "competition":    _pct_to_ratio(match_score.competition_score)     if match_score else None,
         "client_quality": cq,
     }
 

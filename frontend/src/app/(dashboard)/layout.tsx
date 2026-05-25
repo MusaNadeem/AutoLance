@@ -5,49 +5,25 @@ import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   Target, LayoutDashboard, Briefcase, FileText,
-  BarChart3, Bell, Settings, Upload, LogOut, Menu, Zap
+  BarChart3, Bell, Settings, Upload, LogOut, Menu,
 } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
-
-const SCRAPE_INTERVAL_MINUTES = Number(process.env.NEXT_PUBLIC_SCRAPE_INTERVAL_MINUTES) || 15;
-
-function useScrapeCountdown() {
-  const intervalMs = Math.max(1, SCRAPE_INTERVAL_MINUTES * 60 * 1000);
-
-  const computeRemainingMinutes = useCallback(() => {
-    const now = Date.now();
-    const nextTick = Math.ceil(now / intervalMs) * intervalMs;
-    return Math.max(0, Math.ceil((nextTick - now) / 60000));
-  }, [intervalMs]);
-
-  const [remainingMinutes, setRemainingMinutes] = useState<number>(() => computeRemainingMinutes());
-
-  // Lightweight countdown that resets every interval boundary.
-  // (This is UI-only; real scraping cadence depends on backend/beat.)
-  useEffect(() => {
-    const id = setInterval(() => {
-      setRemainingMinutes(computeRemainingMinutes());
-    }, 1000);
-    return () => clearInterval(id);
-  }, [computeRemainingMinutes]);
-
-  return remainingMinutes;
-}
+import { useState } from "react";
+import { StatusBar } from "@/components/layout/StatusBar";
+import { NotificationBell } from "@/components/layout/NotificationBell";
 
 const navItems = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/dashboard/cv", label: "CV Intelligence", icon: Upload },
-  { href: "/dashboard/jobs", label: "Job Feed", icon: Briefcase },
-  { href: "/dashboard/proposals", label: "Proposals", icon: FileText },
-  { href: "/dashboard/analytics", label: "Analytics", icon: BarChart3 },
-  { href: "/dashboard/alerts", label: "Alerts", icon: Bell },
-  { href: "/dashboard/settings", label: "Settings", icon: Settings },
+  { href: "/dashboard",           label: "Dashboard",     icon: LayoutDashboard },
+  { href: "/dashboard/cv",        label: "CV Intelligence", icon: Upload },
+  { href: "/dashboard/jobs",      label: "Job Feed",      icon: Briefcase },
+  { href: "/dashboard/proposals", label: "Proposals",     icon: FileText },
+  { href: "/dashboard/analytics", label: "Analytics",     icon: BarChart3 },
+  { href: "/dashboard/alerts",    label: "Alerts",        icon: Bell },
+  { href: "/dashboard/settings",  label: "Settings",      icon: Settings },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const nextScrapeInMinutes = useScrapeCountdown();
 
   return (
     <div className="flex h-screen overflow-hidden bg-surface-900">
@@ -131,20 +107,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </h1>
           </div>
 
-          <div className="flex items-center gap-4">
-            {/* Live scraping indicator */}
-            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 border-2 border-border bg-surface-900 text-xs font-mono text-slate-300">
-              <Zap size={14} className="text-neon-orange animate-pulse" strokeWidth={2.5} />
-              NEXT SCRAPE: {nextScrapeInMinutes}m
-            </div>
-            <Link href="/dashboard/alerts">
-              <button className="relative w-10 h-10 border-2 border-border bg-surface-900 flex items-center justify-center text-slate-400 hover:text-neon-lime hover:border-neon-lime transition-colors">
-                <Bell size={18} strokeWidth={2.5} />
-                <div className="absolute -top-1 -right-1 w-3 h-3 bg-neon-pink border-2 border-surface-900 animate-blink" />
-              </button>
-            </Link>
+          <div className="flex items-center gap-3">
+            <NotificationBell />
           </div>
         </header>
+
+        {/* StatusBar — real-time scrape status */}
+        <StatusBar />
 
         {/* Page content */}
         <main className="flex-1 overflow-y-auto p-4 md:p-8">

@@ -1,271 +1,197 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { motion } from "framer-motion";
-import { Bell, Slack, Mail, Smartphone, Save, Check, Zap } from "lucide-react";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import useSWR from "swr";
-import { alerts, fetcher } from "@/lib/api";
+import { motion, AnimatePresence } from "framer-motion";
+import { Bell, CheckCheck, BellOff, ExternalLink, Filter } from "lucide-react";
+import { notifications } from "@/lib/api";
+import type { NotificationsResponse, Notification } from "@/types";
 
-type Channel = "email" | "push" | "slack";
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
-type AlertConfigApi = {
-  min_match_score: number;
-  max_proposal_count: number;
-  max_hours_since_posted: number;
-  min_client_quality_score: number;
-  notify_slack: boolean;
-  notify_email: boolean;
-  notify_push: boolean;
-  is_active?: boolean;
-};
-
-type AlertConfigApiMessage = { message: string };
-
-type AlertEventApi = {
-  id: string;
-  job_id: string;
-  job_title?: string | null;
-  match_score?: number | null;
-  trigger_reason?: string | null;
-  channel?: Channel | string | null;
-  sent_at?: string | null;
-  read_at?: string | null;
-  is_actioned?: boolean | null;
-};
-
-type AlertsUiConfig = {
-  minScore: number;
-  maxProposals: number;
-  maxHours: number;
-  minClientScore: number;
-  slack: boolean;
-  email: boolean;
-  push: boolean;
-  slackWebhook: string;
-};
-
-function timeAgo(input: string | Date) {
-  const date = typeof input === "string" ? new Date(input) : input;
-  const diffMs = Date.now() - date.getTime();
-  const diffMinutes = Math.max(0, Math.floor(diffMs / 60000));
-  if (diffMinutes < 60) return `${diffMinutes} min ago`;
-  const hours = Math.floor(diffMinutes / 60);
-  return `${hours} hrs ago`;
+function relativeTime(iso: string): string {
+  const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+  if (diff < 60)    return `${diff}s ago`;
+  if (diff < 3600)  return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
+function scoreColor(score: number): { text: string; bg: string; border: string } {
+  if (score >= 0.85) return { text: "text-neon-lime",   bg: "bg-neon-lime/10",   border: "border-neon-lime" };
+  if (score >= 0.70) return { text: "text-neon-cyan",   bg: "bg-neon-cyan/10",   border: "border-neon-cyan" };
+  if (score >= 0.50) return { text: "text-neon-orange", bg: "bg-neon-orange/10", border: "border-neon-orange" };
+  return              { text: "text-neon-pink",   bg: "bg-neon-pink/10",   border: "border-neon-pink" };
+}
+
+const fetcher = () => notifications.list().then((r) => r.data);
+
+// ── Page ──────────────────────────────────────────────────────────────────────
+
+type Filter = "all" | "unread" | "read";
+
 export default function AlertsPage() {
-  const demoEvents: AlertEventApi[] = useMemo(
-    () => [
-      { id: "demo-1", job_id: "demo-1", job_title: "Senior Python Developer — FastAPI + Celery", match_score: 94, sent_at: new Date(Date.now() - 2 * 60000).toISOString(), channel: "email", is_actioned: false },
-      { id: "demo-2", job_id: "demo-2", job_title: "React Native Developer for FinTech App", match_score: 88, sent_at: new Date(Date.now() - 18 * 60000).toISOString(), channel: "slack", is_actioned: true },
-      { id: "demo-3", job_id: "demo-3", job_title: "FastAPI Backend — Real-Time Analytics Platform", match_score: 85, sent_at: new Date(Date.now() - 41 * 60000).toISOString(), channel: "email", is_actioned: true },
-      { id: "demo-4", job_id: "demo-4", job_title: "Python ML Engineer — Healthcare AI Startup", match_score: 91, sent_at: new Date(Date.now() - 72 * 60000).toISOString(), channel: "push", is_actioned: true },
-      { id: "demo-5", job_id: "demo-5", job_title: "TypeScript Full-Stack Developer — B2B SaaS", match_score: 87, sent_at: new Date(Date.now() - 150 * 60000).toISOString(), channel: "email", is_actioned: false },
-    ],
-    []
+  const router = useRouter();
+  const [filter, setFilter] = useState<Filter>("all");
+  const [markingAll, setMarkingAll] = useState(false);
+
+  const { data, mutate } = useSWR<NotificationsResponse>(
+    "/alerts/",
+    fetcher,
+    { refreshInterval: 60_000, revalidateOnFocus: false }
   );
 
-  const { data: configData } = useSWR<AlertConfigApi | AlertConfigApiMessage>("/alerts/config", fetcher);
-  const { data: eventsData, isLoading: eventsLoading } = useSWR<AlertEventApi[]>("/alerts/events", fetcher, {
-    fallbackData: demoEvents,
+  const allNotifications = data?.notifications ?? [];
+  const unreadCount = data?.unread_count ?? 0;
+
+  const filtered = allNotifications.filter((n) => {
+    if (filter === "unread") return !n.is_read;
+    if (filter === "read")   return n.is_read;
+    return true;
   });
 
-  const apiEvents = eventsData ?? [];
-  const recentAlerts = apiEvents.length ? apiEvents : demoEvents;
-
-  const [config, setConfig] = useState<AlertsUiConfig>({
-    minScore: 85,
-    maxProposals: 10,
-    maxHours: 2,
-    minClientScore: 60,
-    slack: false,
-    email: true,
-    push: true,
-    slackWebhook: "",
-  });
-  const [saved, setSaved] = useState(false);
-
-  useEffect(() => {
-    if (!configData) return;
-    if ("message" in configData) return;
-    const c = configData;
-    setConfig((prev) => ({
-      ...prev,
-      minScore: Number(c.min_match_score ?? prev.minScore),
-      maxProposals: Number(c.max_proposal_count ?? prev.maxProposals),
-      maxHours: Number(c.max_hours_since_posted ?? prev.maxHours),
-      minClientScore: Number(c.min_client_quality_score ?? prev.minClientScore),
-      slack: Boolean(c.notify_slack ?? prev.slack),
-      email: Boolean(c.notify_email ?? prev.email),
-      push: Boolean(c.notify_push ?? prev.push),
-    }));
-  }, [configData]);
-
-  const handleSave = async () => {
-    await alerts.updateConfig({
-      min_match_score: config.minScore,
-      max_proposal_count: config.maxProposals,
-      max_hours_since_posted: config.maxHours,
-      min_client_quality_score: config.minClientScore,
-      notify_slack: config.slack,
-      notify_email: config.email,
-      notify_push: config.push,
-      slack_webhook_url: config.slackWebhook || null,
-    });
-
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+  const handleMarkAllRead = async () => {
+    setMarkingAll(true);
+    try {
+      await notifications.readAll();
+      await mutate();
+    } finally {
+      setMarkingAll(false);
+    }
   };
 
-  const toggleChannel = (key: Channel) => {
-    setConfig(prev => ({ ...prev, [key]: !prev[key] }));
+  const handleClickRow = async (n: Notification) => {
+    if (!n.is_read) {
+      await notifications.read(n.id);
+      await mutate();
+    }
+    if (n.job_id) {
+      router.push(`/dashboard/jobs?job=${n.job_id}`);
+    }
   };
-
-  const channelIcon = (ch?: string | null) => ch === "email" ? "📧" : ch === "slack" ? "💬" : "📱";
 
   return (
-    <div className="p-6 space-y-8 max-w-5xl">
-      <div>
-        <h1 className="text-2xl font-bold text-white">Alert Center</h1>
-        <p className="text-slate-400 mt-1">Configure thresholds and view notification history</p>
+    <div className="max-w-4xl mx-auto space-y-6">
+      {/* Page header */}
+      <div className="flex items-center justify-between border-b-2 border-border pb-4">
+        <div>
+          <h1 className="text-3xl font-display font-bold text-white uppercase tracking-tight">
+            Alerts
+          </h1>
+          <p className="text-slate-400 font-mono text-xs mt-2 uppercase tracking-widest flex items-center gap-2">
+            <Bell size={12} className="text-neon-pink" />
+            {unreadCount > 0
+              ? `${unreadCount} unread notification${unreadCount !== 1 ? "s" : ""}`
+              : "All caught up"}
+          </p>
+        </div>
+        {unreadCount > 0 && (
+          <motion.button
+            whileTap={{ scale: 0.96 }}
+            onClick={handleMarkAllRead}
+            disabled={markingAll}
+            className="btn-ghost flex items-center gap-2 text-sm"
+            id="mark-all-read-page-btn"
+          >
+            <CheckCheck size={16} strokeWidth={2.5} />
+            {markingAll ? "Marking..." : "Mark all read"}
+          </motion.button>
+        )}
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-8">
-        <div className="glass-card p-6 space-y-6">
-          <h2 className="font-semibold text-white flex items-center gap-2">
-            <Bell size={16} className="text-brand-400" /> Alert Thresholds
-          </h2>
-
-          <div className="space-y-5">
-            <div>
-              <div className="flex justify-between mb-2">
-                <label className="text-sm text-slate-300">Minimum Match Score</label>
-                <span className="text-brand-400 font-bold font-mono">{config.minScore}</span>
-              </div>
-              <input
-                type="range" min={50} max={99} value={config.minScore}
-                onChange={(e) => setConfig({ ...config, minScore: +e.target.value })}
-                className="w-full accent-brand-500 h-1.5 rounded-full bg-surface-4"
-              />
-              <div className="flex justify-between text-xs text-slate-500 mt-1">
-                <span>50</span><span>99</span>
-              </div>
-            </div>
-
-            <div>
-              <div className="flex justify-between mb-2">
-                <label className="text-sm text-slate-300">Max Proposals on Job</label>
-                <span className="text-violet-400 font-bold font-mono">{config.maxProposals}</span>
-              </div>
-              <input
-                type="range" min={1} max={50} value={config.maxProposals}
-                onChange={(e) => setConfig({ ...config, maxProposals: +e.target.value })}
-                className="w-full accent-violet-500 h-1.5 rounded-full bg-surface-4"
-              />
-            </div>
-
-            <div>
-              <div className="flex justify-between mb-2">
-                <label className="text-sm text-slate-300">Max Hours Since Posted</label>
-                <span className="text-amber-400 font-bold font-mono">{config.maxHours}h</span>
-              </div>
-              <input
-                type="range" min={1} max={24} value={config.maxHours}
-                onChange={(e) => setConfig({ ...config, maxHours: +e.target.value })}
-                className="w-full accent-amber-500 h-1.5 rounded-full bg-surface-4"
-              />
-            </div>
-
-            <div>
-              <div className="flex justify-between mb-2">
-                <label className="text-sm text-slate-300">Min Client Quality Score</label>
-                <span className="text-emerald-400 font-bold font-mono">{config.minClientScore}</span>
-              </div>
-              <input
-                type="range" min={0} max={100} value={config.minClientScore}
-                onChange={(e) => setConfig({ ...config, minClientScore: +e.target.value })}
-                className="w-full accent-emerald-500 h-1.5 rounded-full bg-surface-4"
-              />
-            </div>
-          </div>
-
-          <div>
-            <h3 className="text-sm font-medium text-white mb-3">Notification Channels</h3>
-            <div className="space-y-2">
-              {[
-                { key: "email", icon: Mail, label: "Email Alerts", color: "text-blue-400" },
-                { key: "push", icon: Smartphone, label: "Push Notifications", color: "text-violet-400" },
-                { key: "slack", icon: Slack, label: "Slack Webhook", color: "text-emerald-400" },
-              ].map((ch) => (
-                <div key={ch.key} className="flex items-center justify-between p-3 rounded-xl bg-surface-4 border border-surface-5">
-                  <div className="flex items-center gap-3">
-                    <ch.icon size={16} className={ch.color} />
-                    <span className="text-sm text-slate-300">{ch.label}</span>
-                  </div>
-                  <button
-                    onClick={() => toggleChannel(ch.key as "email" | "push" | "slack")}
-                    className={`w-10 h-5 rounded-full transition-colors duration-200 relative ${config[ch.key as "email" | "push" | "slack"] ? "bg-brand-500" : "bg-surface-5"}`}
-                  >
-                    <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform duration-200 ${config[ch.key as "email" | "push" | "slack"] ? "left-5" : "left-0.5"}`} />
-                  </button>
-                </div>
-              ))}
-            </div>
-
-            {config.slack && (
-              <motion.input
-                initial={{ opacity: 0, y: -8 }}
-                animate={{ opacity: 1, y: 0 }}
-                type="text"
-                placeholder="https://hooks.slack.com/services/..."
-                value={config.slackWebhook}
-                onChange={(e) => setConfig({ ...config, slackWebhook: e.target.value })}
-                className="mt-2 w-full bg-surface-4 border border-surface-5 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-brand-500"
-              />
+      {/* Filter tabs */}
+      <div className="flex gap-1 border-2 border-border p-1 w-fit bg-surface-800">
+        {(["all", "unread", "read"] as Filter[]).map((f) => (
+          <button
+            key={f}
+            onClick={() => setFilter(f)}
+            className={`px-4 py-1.5 font-mono text-xs font-bold uppercase tracking-widest transition-all ${
+              filter === f
+                ? "bg-neon-lime text-surface-900"
+                : "text-slate-400 hover:text-white"
+            }`}
+          >
+            {f}
+            {f === "unread" && unreadCount > 0 && (
+              <span className="ml-1.5 text-[10px]">({unreadCount})</span>
             )}
-          </div>
-
-          <button onClick={handleSave} className="btn-primary w-full flex items-center justify-center gap-2">
-            {saved ? <><Check size={16} /> Saved!</> : <><Save size={16} /> Save Configuration</>}
           </button>
-        </div>
+        ))}
+      </div>
 
-        <div className="glass-card p-6">
-          <h2 className="font-semibold text-white mb-4 flex items-center gap-2">
-            <Zap size={16} className="text-amber-400" /> Recent Alerts
-          </h2>
-          <div className="space-y-3">
-            {eventsLoading ? (
-              <div className="h-40 skeleton rounded-xl border border-surface-5" />
-            ) : recentAlerts.map((alert, i) => (
-              <motion.div
-                key={alert.id}
-                initial={{ opacity: 0, x: 16 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: i * 0.08 }}
-                className={`p-3.5 rounded-xl border transition-all ${alert.is_actioned ? "border-surface-5 bg-surface-4/30 opacity-60" : "border-brand-500/20 bg-brand-500/5"}`}
-              >
-                <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-brand-500/10 border border-brand-500/20 flex items-center justify-center shrink-0">
-                    <span className="text-brand-300 font-bold text-sm font-mono">{alert.match_score ?? "—"}</span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm text-white leading-snug">{alert.job_title || `Job ${String(alert.job_id || "").slice(0, 8)}`}</p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="text-xs text-slate-500">{alert.sent_at ? timeAgo(alert.sent_at) : ""}</span>
-                      <span className="text-xs text-slate-600">·</span>
-                      <span className="text-xs text-slate-500">{channelIcon(alert.channel)} {alert.channel ?? "email"}</span>
-                      {!alert.is_actioned && (
-                        <span className="ml-auto px-2 py-0.5 rounded-full bg-brand-500/15 text-brand-300 text-xs border border-brand-500/20">New</span>
+      {/* Notifications list */}
+      {filtered.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-24 text-slate-600 border-2 border-border bg-surface-800">
+          <BellOff size={36} strokeWidth={1.5} className="mb-4 opacity-40" />
+          <p className="font-mono text-sm uppercase tracking-widest">
+            {filter === "unread" ? "No unread alerts" : "No alerts yet"}
+          </p>
+          <p className="font-mono text-xs text-slate-700 mt-2">
+            High-match jobs will appear here automatically.
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          <AnimatePresence mode="popLayout">
+            {filtered.map((n, i) => {
+              const colors = scoreColor(n.score);
+              const scoreLabel = `${Math.round(n.score * 100)}%`;
+
+              return (
+                <motion.div
+                  key={n.id}
+                  layout
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ delay: i * 0.03, duration: 0.2 }}
+                  onClick={() => handleClickRow(n)}
+                  className={`brutal-panel p-4 cursor-pointer transition-all hover:translate-x-1 ${
+                    !n.is_read ? "border-l-4 border-l-neon-pink" : "opacity-70"
+                  }`}
+                  id={`alert-row-${n.id}`}
+                >
+                  <div className="flex items-start gap-4">
+                    {/* Score badge */}
+                    <div
+                      className={`shrink-0 px-2.5 py-1 border ${colors.border} ${colors.bg} ${colors.text} font-mono text-sm font-black`}
+                    >
+                      {scoreLabel}
+                    </div>
+
+                    {/* Content */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-3">
+                        <h3 className="font-display font-bold text-white text-sm leading-snug">
+                          {n.job_title}
+                        </h3>
+                        <div className="flex items-center gap-2 shrink-0">
+                          {!n.is_read && (
+                            <span className="h-2 w-2 rounded-full bg-neon-pink" />
+                          )}
+                          <ExternalLink
+                            size={12}
+                            className="text-slate-600 hover:text-neon-lime transition-colors"
+                          />
+                        </div>
+                      </div>
+                      {n.message && (
+                        <p className="text-slate-400 text-xs mt-1 leading-relaxed line-clamp-2">
+                          {n.message}
+                        </p>
                       )}
+                      <span className="text-slate-600 font-mono text-[10px] mt-2 block">
+                        {relativeTime(n.created_at)}
+                      </span>
                     </div>
                   </div>
-                </div>
-              </motion.div>
-            ))}
-          </div>
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
         </div>
-      </div>
+      )}
     </div>
   );
 }

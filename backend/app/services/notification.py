@@ -155,3 +155,114 @@ class NotificationService:
 
 
 notification_service = NotificationService()
+
+
+# ── Phase 2: AlertService ─────────────────────────────────────────────────────
+
+class AlertService:
+    """
+    Orchestrates in-app notification creation and channel dispatch.
+    Called after every scrape+score cycle from match_tasks.py.
+    """
+
+    DEFAULT_THRESHOLD = 0.75   # 0.0–1.0; match_scores stores 0–100 integers
+
+    async def check_and_dispatch(
+        self,
+        db,
+        user_id,
+        user_email: str,
+        user_name: str,
+    ) -> int:
+        """
+        Query jobs scored in the last 30 min that exceed the user's alert threshold.
+        Deduplicates: never inserts the same job_id + user_id twice.
+        Returns the number of new notifications created.
+        """
+        from datetime import datetime, timezone, timedelta
+        from sqlalchemy import select, exists
+        from app.models import MatchScore, AlertConfig
+        from app.models.notification import Notification
+        from app.models.job import Job
+
+        cutoff = datetime.now(timezone.utc) - timedelta(minutes=30)
+
+        # Load alert config (use defaults if none configured)
+        config_result = await db.execute(
+            select(AlertConfig).where(AlertConfig.user_id == user_id)
+        )
+        config = config_result.scalar_one_or_none()
+        threshold_int = config.min_match_score if config else int(self.DEFAULT_THRESHOLD * 100)
+        slack_url = config.slack_webhook_url if (config and config.notify_slack) else None
+        notify_email = config.notify_email if config else False
+
+        # Fetch recent high-scoring match scores not yet notified
+        result = await db.execute(
+            select(MatchScore, Job)
+            .join(Job, Job.id == MatchScore.job_id)
+            .where(
+                MatchScore.user_id == user_id,
+                MatchScore.overall_score >= threshold_int,
+                MatchScore.scored_at >= cutoff,
+                # Dedup: no existing notification for this user+job pair
+                ~exists().where(
+                    Notification.user_id == user_id,
+                    Notification.job_id == MatchScore.job_id,
+                ),
+            )
+        )
+        rows = result.all()
+
+        created = 0
+        for match, job in rows:
+            score_ratio = round(match.overall_score / 100.0, 4)
+            message = (
+                f"New {match.overall_score}% match: {job.title[:80]}. "
+                f"Proposals: {job.proposal_count or 0}."
+            )
+
+            notification = Notification(
+                user_id=user_id,
+                job_id=job.id,
+                job_title=job.title or "Untitled",
+                score=score_ratio,
+                message=message,
+            )
+            db.add(notification)
+            created += 1
+
+            # Fire Slack (if configured)
+            if slack_url:
+                try:
+                    await notification_service.send_slack(
+                        webhook_url=slack_url,
+                        job_title=job.title or "",
+                        match_score=match.overall_score,
+                        job_url=job.url or "",
+                        client_tier="high",
+                        reasons=match.strengths or [],
+                    )
+                except Exception:
+                    pass  # never block notification creation on channel failure
+
+            # Fire email (if configured)
+            if notify_email and config:
+                try:
+                    await notification_service.send_email(
+                        to_email=user_email,
+                        to_name=user_name,
+                        job_title=job.title or "",
+                        match_score=match.overall_score,
+                        job_url=job.url or "",
+                        dashboard_url="https://app.freelanceradar.io/dashboard",
+                    )
+                except Exception:
+                    pass
+
+        if created:
+            await db.flush()
+
+        return created
+
+
+alert_service = AlertService()

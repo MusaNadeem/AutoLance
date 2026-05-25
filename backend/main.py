@@ -20,8 +20,10 @@ from app.routers import (
     matches_router,
     cover_letters_router,
     proposals_router,
-    alerts_router,
+    alerts_router as legacy_alerts_router,  # existing AlertEvent-based router
 )
+from app.routers.scrape import scrape_router     # Phase 2: scrape status
+from app.routers.alerts import alerts_router     # Phase 2: notification inbox
 
 logger = structlog.get_logger()
 
@@ -81,7 +83,9 @@ app.include_router(jobs_router, prefix=API_PREFIX)
 app.include_router(matches_router, prefix=API_PREFIX)
 app.include_router(cover_letters_router, prefix=API_PREFIX)
 app.include_router(proposals_router, prefix=API_PREFIX)
-app.include_router(alerts_router, prefix=API_PREFIX)
+app.include_router(legacy_alerts_router, prefix=API_PREFIX)  # /alerts/config, /alerts/events
+app.include_router(alerts_router, prefix=API_PREFIX)         # Phase 2: /alerts/, /alerts/read*
+app.include_router(scrape_router, prefix=API_PREFIX)         # Phase 2: /scrape/status, /scrape/trigger
 
 
 # ── Health Endpoints ──────────────────────────────────────
