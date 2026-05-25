@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import useSWR from "swr";
 import { fetcher } from "@/lib/api";
@@ -52,6 +53,7 @@ function ScoreRing({ score }: { score: number }) {
 }
 
 export default function DashboardPage() {
+  const router = useRouter();
   const demoJobs = [
     {
       id: "demo-1",
@@ -181,6 +183,7 @@ export default function DashboardPage() {
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: i * 0.1 + 0.2, duration: 0.3, ease: "easeOut" }}
                 className="brutal-panel p-5 cursor-pointer group"
+                onClick={() => router.push(`/dashboard/jobs?job=${job.id}`)}
               >
                 <div className="flex items-start gap-5">
                   <ScoreRing score={
@@ -231,7 +234,10 @@ export default function DashboardPage() {
                           {skill}
                         </span>
                       ))}
-                      <button className="ml-auto btn-primary text-xs py-2 px-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        className="ml-auto btn-primary text-xs py-2 px-4 opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={(e) => { e.stopPropagation(); router.push(`/dashboard/jobs?job=${job.id}`); }}
+                      >
                         Generate Cover Letter
                       </button>
                     </div>
@@ -253,7 +259,7 @@ export default function DashboardPage() {
           </h3>
           <div className="space-y-4">
             {recentAlerts.map((alert: any) => (
-              <div key={alert.id} className="flex items-center gap-4 p-3 border-2 border-transparent hover:border-neon-pink bg-surface-900 transition-colors cursor-pointer">
+              <div key={alert.id} className="flex items-center gap-4 p-3 border-2 border-transparent hover:border-neon-pink bg-surface-900 transition-colors cursor-pointer" onClick={() => router.push(alert.job_id ? `/dashboard/jobs?job=${alert.job_id}` : "/dashboard/alerts")}>
                 <div className="w-12 h-12 bg-surface-800 border-2 border-border flex items-center justify-center shrink-0">
                   <span className="text-neon-pink font-bold font-mono text-lg">{alert.match_score ?? "—"}</span>
                 </div>
