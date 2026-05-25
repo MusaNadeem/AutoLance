@@ -434,6 +434,7 @@ baseURL = `${NEXT_PUBLIC_API_URL}/api/v1`  // default: http://localhost:8000/api
 | FilterBar buttons dead | `useSearchParams` in App Router needs `<Suspense>` | Wrapped `JobsFeed` in `<Suspense>` in `jobs/page.tsx` |
 | Docker frontend build failing | ESLint blocked build on unused vars | Cleaned up unused imports in `ProposalPanel.tsx`, `FilterBar.tsx`, `jobs/page.tsx` |
 | `qa_full.py` FILE checks failing locally | Hardcoded `/app/...` Docker paths | Replaced with `os.path.dirname(os.path.abspath(__file__))` |
+| Dashboard job clicks navigated away | Cards and alert rows navigated to jobs feed instead of opening inline | Added inline slide-over detail panel to dashboard so it doesn't navigate away |
 
 ---
 
