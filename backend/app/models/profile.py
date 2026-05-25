@@ -19,8 +19,10 @@ class FreelancerProfile(Base):
     niche = Column(String(255))
     specializations = Column(JSONB)
     communication_tone = Column(String(100))      # formal | casual | technical
-    inferred_hourly_rate_min = Column(Numeric(10, 2))
-    inferred_hourly_rate_max = Column(Numeric(10, 2))
+    inferred_hourly_rate_min = Column(Numeric(10, 2))   # from CV parsing
+    inferred_hourly_rate_max = Column(Numeric(10, 2))   # from CV parsing
+    target_fixed_min = Column(Numeric(10, 2))           # user-set: min fixed-price project ($)
+    target_fixed_max = Column(Numeric(10, 2))           # user-set: max fixed-price project ($)
     preferred_project_types = Column(JSONB)
     preferred_industries = Column(JSONB)
     embedding = Column(Vector(1536))

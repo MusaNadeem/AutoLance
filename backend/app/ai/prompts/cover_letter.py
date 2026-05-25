@@ -23,6 +23,7 @@ def build_cover_letter_prompt(
     job: dict,
     match: dict,
     style: str = "professional",
+    tone: str = "professional",
     custom_instructions: str = "",
 ) -> str:
     style_guidance = {
@@ -31,6 +32,33 @@ def build_cover_letter_prompt(
         "technical": "Lead with technical depth. Show you understand the stack and challenges.",
         "creative": "Engaging, energetic, slightly unconventional opener. Show personality.",
     }
+
+    # Phase 3 tone overrides — replace style_guidance when tone is set explicitly
+    tone_instruction_blocks = {
+        "professional": (
+            "TONE: Formal and results-focused. Use precise metrics language. "
+            "No contractions. No casual phrasing. Lead with a quantified outcome or "
+            "specific technical credential. Keep every sentence purposeful."
+        ),
+        "friendly": (
+            "TONE: Warm, conversational, human. Use contractions freely (I've, I'm, you'll). "
+            "Write as if talking to a smart colleague over coffee. "
+            "Show genuine enthusiasm without being sycophantic."
+        ),
+        "bold": (
+            "TONE: Lead immediately with your strongest value proposition — no preamble, "
+            "no pleasantries. First sentence must be a direct claim or result. "
+            "Be direct, brief, and confident. Aim for 120–180 words max."
+        ),
+    }
+
+    # tone param takes precedence over style when it's one of the Phase 3 values
+    if tone in tone_instruction_blocks:
+        tone_block = tone_instruction_blocks[tone]
+        effective_style_guidance = tone_instruction_blocks[tone]
+    else:
+        tone_block = ""
+        effective_style_guidance = style_guidance.get(style, style_guidance["professional"])
 
     return f"""Write a cover letter for this job application.
 
@@ -46,8 +74,7 @@ MATCH ANALYSIS (use these insights):
 - Proposal hook: {match.get('proposal_hook', '')}
 - Client quality: {match.get('client_quality_score', 'unknown')}/100
 
-WRITING STYLE: {style}
-Style guidance: {style_guidance.get(style, style_guidance['professional'])}
+{tone_block or f'WRITING STYLE: {style}\nStyle guidance: {effective_style_guidance}'}
 
 {f'ADDITIONAL INSTRUCTIONS: {custom_instructions}' if custom_instructions else ''}
 

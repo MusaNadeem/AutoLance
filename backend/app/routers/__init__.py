@@ -112,6 +112,7 @@ cover_letters_router = APIRouter(prefix="/cover-letters", tags=["Cover Letters"]
 class GenerateCoverLetterRequest(BaseModel):
     job_id: str
     style: str = "professional"
+    tone: str = "professional"   # Phase 3: professional | friendly | bold
     custom_instructions: str = ""
 
 
@@ -127,12 +128,14 @@ async def generate_cover_letter(
         user_id=current_user.id,
         job_id=uuid.UUID(body.job_id),
         style=body.style,
+        tone=body.tone,
         custom_instructions=body.custom_instructions,
     )
     return {
         "id": str(letter.id),
         "content": letter.content,
         "style": letter.style,
+        "tone": body.tone,
         "variant_index": letter.variant_index,
         "token_count": letter.token_count,
     }

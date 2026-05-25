@@ -16,6 +16,7 @@ from app.models.job import Job
 logger = structlog.get_logger()
 
 VALID_STYLES = ["professional", "casual", "technical", "creative"]
+VALID_TONES  = ["professional", "friendly", "bold"]   # Phase 3
 
 
 class CoverLetterService:
@@ -27,12 +28,15 @@ class CoverLetterService:
         user_id: UUID,
         job_id: UUID,
         style: str = "professional",
+        tone: str = "professional",
         custom_instructions: str = "",
         save: bool = True,
     ) -> CoverLetter:
         """Generate a personalized cover letter for a job."""
         if style not in VALID_STYLES:
             style = "professional"
+        if tone not in VALID_TONES:
+            tone = "professional"
 
         # Load job
         job_result = await db.execute(select(Job).where(Job.id == job_id))
@@ -87,6 +91,7 @@ class CoverLetterService:
             job=job_context,
             match=match_context,
             style=style,
+            tone=tone,
             custom_instructions=custom_instructions,
         )
 

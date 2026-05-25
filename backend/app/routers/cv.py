@@ -195,3 +195,107 @@ async def get_cv(
         "ocr_used": cv.ocr_used,
         "created_at": cv.created_at,
     }
+
+
+# ────────────────────────────────────────────────────────────────
+# PHASE 3: GET + PUT /cv/profile
+# ────────────────────────────────────────────────────────────────
+
+from pydantic import BaseModel as _BaseModel
+from typing import Optional as _Optional, List as _List
+
+
+class SkillItem(_BaseModel):
+    name: str
+    level: str = "intermediate"
+    years: float = 0
+
+
+class ProfileUpdateRequest(_BaseModel):
+    headline:                 _Optional[str]        = None
+    summary:                  _Optional[str]        = None
+    skills:                   _Optional[_List[SkillItem]] = None
+    experience_level:         _Optional[str]        = None   # junior|mid|senior|expert
+    niche:                    _Optional[str]        = None
+    inferred_hourly_rate_min: _Optional[float]      = None
+    inferred_hourly_rate_max: _Optional[float]      = None
+    target_fixed_min:         _Optional[float]      = None
+    target_fixed_max:         _Optional[float]      = None
+
+
+def _serialize_profile(p: "FreelancerProfile") -> dict:
+    """Serialize profile to JSON — all 9 fields, explicit None when absent."""
+    def _f(v):
+        return float(v) if v is not None else None
+
+    return {
+        "id":                       str(p.id),
+        "headline":                 p.headline,
+        "summary":                  p.summary,
+        "skills":                   p.skills or [],
+        "experience_level":         p.experience_level,
+        "niche":                    p.niche,
+        "inferred_hourly_rate_min": _f(p.inferred_hourly_rate_min),
+        "inferred_hourly_rate_max": _f(p.inferred_hourly_rate_max),
+        "target_fixed_min":         _f(getattr(p, "target_fixed_min", None)),
+        "target_fixed_max":         _f(getattr(p, "target_fixed_max", None)),
+        "last_analyzed_at":         p.last_analyzed_at.isoformat() if p.last_analyzed_at else None,
+        "profile_version":          p.profile_version,
+    }
+
+
+@router.get("/profile")
+async def get_cv_profile(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    GET /api/v1/cv/profile
+    Returns the current user's FreelancerProfile.
+    Used by onboarding page and /dashboard/profile edit form.
+    Returns 404 if no CV has been uploaded yet.
+    """
+    result = await db.execute(
+        select(FreelancerProfile).where(FreelancerProfile.user_id == current_user.id)
+    )
+    profile = result.scalar_one_or_none()
+    if not profile:
+        raise HTTPException(status_code=404, detail="No profile yet. Upload your CV first.")
+    return _serialize_profile(profile)
+
+
+@router.put("/profile")
+async def update_cv_profile(
+    body: ProfileUpdateRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    PUT /api/v1/cv/profile
+    Upsert the user's FreelancerProfile with manually-confirmed values.
+    Called by the onboarding Confirm button and /dashboard/profile Save Changes.
+    Only fields present in the body (non-None) are updated.
+    """
+    result = await db.execute(
+        select(FreelancerProfile).where(FreelancerProfile.user_id == current_user.id)
+    )
+    profile = result.scalar_one_or_none()
+
+    if not profile:
+        # First-time PUT before any CV upload — create an empty profile
+        profile = FreelancerProfile(user_id=current_user.id)
+        db.add(profile)
+
+    # Update only provided fields
+    update_map = body.model_dump(exclude_none=True)
+    if "skills" in update_map:
+        update_map["skills"] = [s.model_dump() for s in body.skills]
+
+    for field, value in update_map.items():
+        setattr(profile, field, value)
+
+    # Bump version
+    profile.profile_version = (profile.profile_version or 1) + 1
+
+    return _serialize_profile(profile)
+
