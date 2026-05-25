@@ -92,15 +92,17 @@ async def scrape_history(
     return [_serialize_run(r) for r in runs]
 
 
-def _serialize_run(run: ScrapingRun) -> dict:
+def _serialize_run(run: ScrapingRun | None) -> dict | None:
+    if run is None:
+        return None
     return {
-        "id": str(run.id),
-        "status": run.status,
-        "started_at": run.started_at.isoformat() if run.started_at else None,
-        "completed_at": run.completed_at.isoformat() if run.completed_at else None,
+        "id":               str(run.id),
+        "status":           run.status,
+        "started_at":       run.started_at.isoformat()   if run.started_at   else None,
+        "completed_at":     run.completed_at.isoformat() if run.completed_at else None,
         "duration_seconds": run.duration_seconds,
-        "jobs_found": run.jobs_new or 0,   # jobs_found = new jobs only
-        "jobs_scraped": run.jobs_scraped or 0,
-        "jobs_new": run.jobs_new or 0,
-        "error_message": run.error_message,
+        "jobs_found":       run.jobs_scraped or 0,   # total jobs seen in this run
+        "jobs_scraped":     run.jobs_scraped or 0,
+        "jobs_new":         run.jobs_new     or 0,
+        "error_message":    (run.error_message or "")[:200] if run.error_message else None,
     }
