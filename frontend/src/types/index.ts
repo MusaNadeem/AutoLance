@@ -120,19 +120,44 @@ export interface CVProfile {
 
 export type ProposalTone = "professional" | "friendly" | "bold";
 
-// ── Phase 4 stub ──────────────────────────────────────────────────────────────
+// ── Phase 4: Analytics data (GET /analytics) ─────────────────────────────────
+
+export interface ScoreDistributionBucket {
+  bucket: "0-25" | "25-50" | "50-75" | "75-100";
+  count: number;
+}
+
+export interface TopSkillEntry {
+  skill: string;
+  count: number;
+}
+
+export interface ScrapeHistoryEntry {
+  date: string;
+  jobs_found: number;
+  jobs_new: number;
+  status?: string;
+}
 
 export interface AnalyticsData {
-  win_rate:             number;
-  response_rate:        number;
-  total_revenue:        number;
-  avg_project_value:    number;
-  proposals_by_month:   { month: string; count: number; won: number }[];
-  top_skill_matches:    { skill: string; match_rate: number }[];
-  scrape_history:       { date: string; jobs_found: number; jobs_new: number }[];
-  proposals_generated:  number;
-  alerts_sent:          number;
+  jobs_scraped_total: number;
+  avg_score: number;
+  score_distribution: ScoreDistributionBucket[];
+  top_skills_in_demand: TopSkillEntry[];
+  scrape_history: ScrapeHistoryEntry[];
 }
+
+// ── Phase 4: Job filter query params ─────────────────────────────────────────
+
+export interface JobsListParams {
+  page?: number;
+  limit?: number;
+  sort_by?: "score" | "posted_at" | "budget";
+  min_score?: number;       // 0-100
+  posted_within?: number;   // hours
+  budget_type?: "hourly" | "fixed";
+}
+
 
 // ── Domain models ─────────────────────────────────────────────────────────────
 

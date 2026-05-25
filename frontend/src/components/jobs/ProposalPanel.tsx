@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Copy, Check, ExternalLink, RefreshCw, Loader2,
-  FileText, AlertTriangle,
+  AlertTriangle,
 } from "lucide-react";
 import { coverLetters } from "@/lib/api";
 import type { Job, ProposalTone } from "@/types";
@@ -14,7 +14,6 @@ import type { Job, ProposalTone } from "@/types";
 interface ProposalPanelProps {
   job: Job;
   initialContent?: string;
-  initialCoverLetterId?: string;
 }
 
 const TONES: { value: ProposalTone; label: string; desc: string }[] = [
@@ -39,7 +38,6 @@ function wordCount(text: string): number {
 export function ProposalPanel({
   job,
   initialContent = "",
-  initialCoverLetterId,
 }: ProposalPanelProps) {
   const [text, setText]           = useState(initialContent);
   const [tone, setTone]           = useState<ProposalTone>("professional");
@@ -47,7 +45,6 @@ export function ProposalPanel({
   const [error, setError]         = useState<string | null>(null);
   const [copied, setCopied]       = useState(false);
   const [isDirty, setIsDirty]     = useState(false);
-  const [coverId, setCoverId]     = useState(initialCoverLetterId);
   const [confirmRegen, setConfirmRegen] = useState(false);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -71,7 +68,6 @@ export function ProposalPanel({
         tone: selectedTone,
       });
       setText(res.data.content ?? "");
-      setCoverId(res.data.id);
       setIsDirty(false);
     } catch (e: unknown) {
       const err = e as { response?: { data?: { detail?: string } } };

@@ -1,9 +1,10 @@
 """Jobs Router — Browse and filter scraped jobs"""
+from datetime import datetime, timezone, timedelta
 from typing import Optional
 from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, desc
+from sqlalchemy import select, func, desc, asc, case
 from sqlalchemy.orm import selectinload
 
 from app.database import get_db
@@ -16,11 +17,19 @@ from app.workers.scrape_tasks import manual_scrape
 
 router = APIRouter(prefix="/jobs", tags=["Jobs"])
 
+# Valid sort options
+_SORT_OPTIONS = {"score", "posted_at", "budget"}
+
 
 @router.get("/")
 async def list_jobs(
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
+    # Phase 4 filter params
+    sort_by: str = Query("posted_at", description="score | posted_at | budget"),
+    min_score: Optional[int] = Query(None, ge=0, le=100, description="Minimum overall score (0-100)"),
+    posted_within: Optional[int] = Query(None, ge=1, description="Only jobs posted within N hours"),
+    # Legacy filter params (kept for compatibility)
     budget_type: Optional[str] = None,
     experience_level: Optional[str] = None,
     proposal_tier: Optional[str] = None,
@@ -30,9 +39,21 @@ async def list_jobs(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Paginated job feed with filtering."""
+    """Paginated job feed with filtering and sorting.
+
+    Phase 4 additions:
+    - sort_by: score | posted_at | budget
+    - min_score: filter by minimum overall match score (0-100)
+    - posted_within: only jobs posted within N hours
+    Returns `total` count for pagination.
+    """
+    if sort_by not in _SORT_OPTIONS:
+        sort_by = "posted_at"
+
+    # ── Base query ────────────────────────────────────────────────────────────
     query = select(Job).where(Job.is_active == True)
 
+    # ── Legacy filters ────────────────────────────────────────────────────────
     if budget_type:
         query = query.where(Job.budget_type == budget_type)
     if experience_level:
@@ -44,13 +65,29 @@ async def list_jobs(
     if max_budget:
         query = query.where(Job.budget_max <= max_budget)
 
-    query = query.order_by(desc(Job.posted_at)).offset((page - 1) * limit).limit(limit)
+    # ── Phase 4: posted_within filter ─────────────────────────────────────────
+    if posted_within:
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=posted_within)
+        query = query.where(Job.posted_at >= cutoff)
 
+    # ── Phase 4: Sorting ──────────────────────────────────────────────────────
+    if sort_by == "budget":
+        query = query.order_by(desc(Job.budget_max), desc(Job.posted_at))
+    else:
+        # Default: posted_at. score is handled post-fetch (after joining match scores).
+        query = query.order_by(desc(Job.posted_at))
+
+    # ── Count total matching jobs (for pagination) ────────────────────────────
+    count_query = select(func.count()).select_from(query.subquery())
+    total_result = await db.execute(count_query)
+    total: int = total_result.scalar() or 0
+
+    # ── Fetch page ────────────────────────────────────────────────────────────
+    query = query.offset((page - 1) * limit).limit(limit)
     result = await db.execute(query)
     jobs = result.scalars().all()
 
     # ── Batch-fetch current user's latest match score per job ─────────────────
-    # Avoids N+1 queries. We only need the most-recent score per job.
     match_scores_by_job: dict[UUID, MatchScore] = {}
     if jobs:
         job_ids = [j.id for j in jobs]
@@ -63,14 +100,31 @@ async def list_jobs(
             .order_by(desc(MatchScore.scored_at))
         )
         for ms in ms_result.scalars().all():
-            # Keep only the latest score per job
             if ms.job_id not in match_scores_by_job:
                 match_scores_by_job[ms.job_id] = ms
+
+    # ── Phase 4: min_score filter ─────────────────────────────────────────────
+    # Applied post-fetch since score lives in MatchScore, not Job.
+    serialized = [_serialize_job(j, match_scores_by_job.get(j.id)) for j in jobs]
+    if min_score is not None:
+        serialized = [
+            s for s in serialized
+            if s["score"]["overall"] is not None
+            and round(s["score"]["overall"] * 100) >= min_score
+        ]
+
+    # ── Phase 4: sort_by=score (post-fetch) ───────────────────────────────────
+    if sort_by == "score":
+        serialized.sort(
+            key=lambda s: (s["score"]["overall"] or 0),
+            reverse=True,
+        )
 
     return {
         "page": page,
         "limit": limit,
-        "jobs": [_serialize_job(j, match_scores_by_job.get(j.id)) for j in jobs],
+        "total": total,
+        "jobs": serialized,
     }
 
 
