@@ -1,8 +1,8 @@
-# FreelanceRadar 🎯
+# AutoLance 🎯
 
 > AI-Powered Upwork Intelligence Engine — Built on Bright Data + Claude
 
-FreelanceRadar continuously scrapes the Upwork job board in real time, deeply analyzes freelancer profiles using Claude AI, and surfaces the highest-converting job opportunities with ranked match scores, personalized cover letters, and real-time alerts.
+AutoLance continuously scrapes the Upwork job board in real time, deeply analyzes freelancer profiles using Claude AI, and surfaces the highest-converting job opportunities with ranked match scores, personalized cover letters, and real-time alerts.
 
 ---
 
@@ -22,7 +22,7 @@ FreelanceRadar continuously scrapes the Upwork job board in real time, deeply an
 
 | Layer | Technology |
 |-------|-----------|
-| Frontend | Next.js 14, TypeScript, TailwindCSS, shadcn/ui |
+| Frontend | Next.js 15, TypeScript, TailwindCSS, shadcn/ui |
 | Backend | FastAPI, Python 3.11, SQLAlchemy 2.0 |
 | Workers | Celery, Redis |
 | Database | PostgreSQL 16 + pgvector |
@@ -42,8 +42,8 @@ FreelanceRadar continuously scrapes the Upwork job board in real time, deeply an
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/yourorg/freelanceradar
-cd freelanceradar
+git clone https://github.com/MusaNadeem/AutoLance.git
+cd AutoLance
 
 # 2. Configure environment
 cp .env.example .env
@@ -78,9 +78,9 @@ npm run dev
 ## Project Structure
 
 ```
-freelanceradar/
+AutoLance/
 ├── backend/          # FastAPI Python backend
-├── frontend/         # Next.js 14 frontend
+├── frontend/         # Next.js 15 frontend
 ├── infra/            # Nginx, monitoring configs
 ├── docker-compose.yml
 └── .env.example
