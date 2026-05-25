@@ -41,7 +41,11 @@ apiClient.interceptors.request.use((config) => {
 apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
-    if (error.response?.status === 401) {
+    // Only redirect to /login for 401s that are NOT from the auth endpoints themselves.
+    // Without this guard, a wrong-password login attempt triggers a page reload.
+    const requestUrl: string = error.config?.url ?? "";
+    const isAuthEndpoint = requestUrl.includes("/auth/login") || requestUrl.includes("/auth/register");
+    if (error.response?.status === 401 && !isAuthEndpoint) {
       localStorage.removeItem("access_token");
       localStorage.removeItem("refresh_token");
       window.location.href = "/login";

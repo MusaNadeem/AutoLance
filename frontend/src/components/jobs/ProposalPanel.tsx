@@ -87,9 +87,10 @@ export function ProposalPanel({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleToneChange = (newTone: ProposalTone) => {
+  const handleToneSelect = (newTone: ProposalTone) => {
     setTone(newTone);
-    generate(newTone);
+    // Tone change does NOT auto-regenerate — user picks a tone then clicks Regenerate.
+    // This avoids the textarea reloading every time a tone button is clicked.
   };
 
   const handleRegenerate = () => {
@@ -121,7 +122,7 @@ export function ProposalPanel({
             <button
               key={t.value}
               id={`tone-${t.value}`}
-              onClick={() => handleToneChange(t.value)}
+              onClick={() => handleToneSelect(t.value)}
               disabled={generating}
               className={`px-3 py-2 border-2 font-mono text-xs font-bold uppercase tracking-wider transition-all ${
                 tone === t.value
@@ -184,14 +185,17 @@ export function ProposalPanel({
             {words > WORD_MAX && " · Too long (max 250)"}
           </span>
         </div>
-        <button
-          onClick={handleRegenerate}
-          disabled={generating}
-          className="flex items-center gap-1 text-slate-500 hover:text-neon-lime transition-colors uppercase tracking-widest disabled:opacity-40"
-        >
-          <RefreshCw size={10} className={generating ? "animate-spin" : ""} />
-          Regenerate
-        </button>
+          <span className={`text-[10px] font-mono uppercase tracking-widest text-slate-600`}>
+            Regenerate with {tone}
+          </span>
+          <button
+            onClick={handleRegenerate}
+            disabled={generating}
+            className="flex items-center gap-1 text-slate-500 hover:text-neon-lime transition-colors uppercase tracking-widest disabled:opacity-40"
+          >
+            <RefreshCw size={10} className={generating ? "animate-spin" : ""} />
+            Regenerate
+          </button>
       </div>
 
       {/* Action buttons */}
