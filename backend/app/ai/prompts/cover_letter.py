@@ -57,8 +57,10 @@ def build_cover_letter_prompt(
         tone_block = tone_instruction_blocks[tone]
         effective_style_guidance = tone_instruction_blocks[tone]
     else:
-        tone_block = ""
         effective_style_guidance = style_guidance.get(style, style_guidance["professional"])
+        tone_block = f"WRITING STYLE: {style}\nStyle guidance: {effective_style_guidance}"
+
+    custom_instructions_block = f"ADDITIONAL INSTRUCTIONS: {custom_instructions}\n" if custom_instructions else ""
 
     return f"""Write a cover letter for this job application.
 
@@ -74,8 +76,7 @@ MATCH ANALYSIS (use these insights):
 - Proposal hook: {match.get('proposal_hook', '')}
 - Client quality: {match.get('client_quality_score', 'unknown')}/100
 
-{tone_block or f'WRITING STYLE: {style}\nStyle guidance: {effective_style_guidance}'}
+{tone_block}
 
-{f'ADDITIONAL INSTRUCTIONS: {custom_instructions}' if custom_instructions else ''}
-
+{custom_instructions_block}
 Write the cover letter now. Start directly with the opening line."""

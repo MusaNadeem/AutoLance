@@ -1,18 +1,21 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useCallback, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import useSWR from "swr";
 import { fetcher } from "@/lib/api";
-import type { Job } from "@/types";
+import type { Job, JobsListParams } from "@/types";
 import { ScoreBadge } from "@/components/jobs/ScoreBadge";
 import { BidRecommendation } from "@/components/jobs/BidRecommendation";
 import { ProposalPanel } from "@/components/jobs/ProposalPanel";
+import { FilterBar } from "@/components/jobs/FilterBar";
 import {
-  Filter, Clock, Users, DollarSign,
+  Clock, Users, DollarSign,
   Zap, Shield, ShieldAlert, ShieldX, X,
-  Sparkles, ExternalLink,
+  Sparkles, SearchX,
 } from "lucide-react";
+
 
 // ── Tier config ───────────────────────────────────────────────────────────────
 
@@ -132,13 +135,64 @@ const DEMO_JOBS: Job[] = [
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
-export default function JobsPage() {
-  const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
-  const [generating, setGenerating] = useState(false);
-  const [coverLetter, setCoverLetter] = useState<string | null>(null);
+const DEFAULTS: JobsListParams = {
+  sort_by: "posted_at",
+  min_score: undefined,
+  posted_within: undefined,
+  budget_type: undefined,
+};
 
-  const { data: jobsData, isLoading } = useSWR("/jobs", fetcher, {
-    fallbackData: { jobs: DEMO_JOBS },
+function paramsFromSearch(sp: URLSearchParams): JobsListParams {
+  return {
+    sort_by: (sp.get("sort_by") as JobsListParams["sort_by"]) || "posted_at",
+    min_score: sp.has("min_score") ? Number(sp.get("min_score")) : undefined,
+    posted_within: sp.has("posted_within") ? Number(sp.get("posted_within")) : undefined,
+    budget_type: (sp.get("budget_type") as JobsListParams["budget_type"]) || undefined,
+  };
+}
+
+function buildApiUrl(params: JobsListParams): string {
+  const sp = new URLSearchParams();
+  if (params.sort_by && params.sort_by !== "posted_at") sp.set("sort_by", params.sort_by);
+  if (params.min_score) sp.set("min_score", String(params.min_score));
+  if (params.posted_within) sp.set("posted_within", String(params.posted_within));
+  if (params.budget_type) sp.set("budget_type", params.budget_type);
+  const qs = sp.toString();
+  return `/jobs${qs ? `?${qs}` : ""}`;
+}
+
+function JobsFeed() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
+  const [filterParams, setFilterParams] = useState<JobsListParams>(() =>
+    paramsFromSearch(searchParams)
+  );
+
+  // Sync filter changes to URL
+  const handleFilterChange = useCallback((next: Partial<JobsListParams>) => {
+    const updated = { ...filterParams, ...next };
+    setFilterParams(updated);
+
+    const sp = new URLSearchParams();
+    if (updated.sort_by && updated.sort_by !== "posted_at") sp.set("sort_by", updated.sort_by);
+    if (updated.min_score) sp.set("min_score", String(updated.min_score));
+    if (updated.posted_within) sp.set("posted_within", String(updated.posted_within));
+    if (updated.budget_type) sp.set("budget_type", updated.budget_type);
+    const qs = sp.toString();
+    router.replace(`/dashboard/jobs${qs ? `?${qs}` : ""}`, { scroll: false });
+  }, [filterParams, router]);
+
+  const handleClear = useCallback(() => {
+    setFilterParams(DEFAULTS);
+    router.replace("/dashboard/jobs", { scroll: false });
+  }, [router]);
+
+  const swrKey = buildApiUrl(filterParams);
+
+  const { data: jobsData, isLoading } = useSWR(swrKey, fetcher, {
+    fallbackData: { jobs: DEMO_JOBS, total: DEMO_JOBS.length },
     revalidateOnFocus: false,
     revalidateOnReconnect: false,
     shouldRetryOnError: false,
@@ -147,6 +201,7 @@ export default function JobsPage() {
 
   const apiJobs: Job[] = jobsData?.jobs ?? [];
   const jobs: Job[] = apiJobs.length ? apiJobs : DEMO_JOBS;
+  const total: number = jobsData?.total ?? jobs.length;
 
   const { data: jobDetails } = useSWR<Job>(
     selectedJobId ? `/jobs/${selectedJobId}` : null,
@@ -160,8 +215,6 @@ export default function JobsPage() {
   );
   const selectedJob: Job | undefined = jobDetails ?? jobs.find((j) => j.id === selectedJobId);
 
-  // handleGenerate replaced by ProposalPanel (Phase 3)
-
   return (
     <div className="flex h-full max-w-7xl mx-auto">
       {/* ── Job list ─────────────────────────────────────────────────────── */}
@@ -169,20 +222,25 @@ export default function JobsPage() {
         className={`flex-1 p-4 md:p-6 overflow-y-auto transition-all duration-300 ${selectedJobId ? "lg:max-w-md xl:max-w-lg pr-4" : ""
           }`}
       >
-        <div className="flex items-center justify-between mb-8 border-b-2 border-border pb-4">
+        <div className="flex items-center justify-between mb-6 border-b-2 border-border pb-4">
           <div>
             <h1 className="text-3xl font-display font-bold text-white uppercase tracking-tight">
               Job Feed
             </h1>
             <p className="text-slate-400 font-mono text-xs mt-2 uppercase tracking-widest flex items-center gap-2">
               <Zap size={14} className="text-neon-lime" />
-              {jobs.length} active matches
+              {isLoading ? "Loading..." : `${total} active matches`}
             </p>
           </div>
-          <button className="btn-ghost flex items-center gap-2 text-sm">
-            <Filter size={16} strokeWidth={2.5} /> FILTERS
-          </button>
         </div>
+
+        {/* FilterBar */}
+        <FilterBar
+          params={filterParams}
+          onChange={handleFilterChange}
+          onClear={handleClear}
+          totalJobs={isLoading ? undefined : jobs.length}
+        />
 
         <div className="space-y-4">
           {isLoading ? (
@@ -191,9 +249,25 @@ export default function JobsPage() {
               .map((_, i) => (
                 <div key={i} className="h-32 skeleton border-2 border-border" />
               ))
+          ) : jobs.length === 0 ? (
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="text-center py-16 space-y-4"
+            >
+              <SearchX size={48} className="text-slate-600 mx-auto" />
+              <p className="text-slate-400 font-mono text-sm uppercase tracking-widest">
+                No jobs match your filters
+              </p>
+              <button
+                onClick={handleClear}
+                className="text-neon-lime font-mono text-xs font-bold uppercase border border-neon-lime px-4 py-2 hover:bg-neon-lime hover:text-surface-900 transition-colors"
+              >
+                Clear Filters
+              </button>
+            </motion.div>
           ) : (
             jobs.map((job, i) => {
-              // Overall score: prefer score.overall (0.0-1.0 → 0-100), fall back to 0
               const scoreVal = job.score?.overall != null
                 ? Math.round(job.score.overall * 100)
                 : 0;
@@ -244,7 +318,12 @@ export default function JobsPage() {
                     </span>
                     <span className="flex items-center gap-1">
                       <Clock size={14} strokeWidth={2.5} />
-                      2h AGO
+                      {job.posted_at
+                        ? (() => {
+                            const diff = Math.floor((Date.now() - new Date(job.posted_at).getTime()) / 60000);
+                            return diff < 60 ? `${diff}m ago` : diff < 1440 ? `${Math.floor(diff/60)}h ago` : `${Math.floor(diff/1440)}d ago`;
+                          })()
+                        : "—"}
                     </span>
                     <span className={`px-2 py-1 ${tierConfig[clientTier].badge}`}>
                       {tierConfig[clientTier].label}
@@ -281,12 +360,12 @@ export default function JobsPage() {
             </div>
 
             <div className="p-6 space-y-6 flex-1 overflow-y-auto">
-              {/* ScoreBadge — QA-9 & QA-10 */}
+              {/* ScoreBadge */}
               <ScoreBadge
                 score={selectedJob.score}
               />
 
-              {/* BidRecommendation — QA-11 & QA-12 */}
+              {/* BidRecommendation */}
               <BidRecommendation
                 bid={selectedJob.bid ?? null}
                 budget_type={selectedJob.budget_type}
@@ -359,7 +438,7 @@ export default function JobsPage() {
                 </div>
               )}
 
-              {/* Phase 3: ProposalPanel — tone selector, char counter, copy, Open on Upwork */}
+              {/* Phase 3: ProposalPanel */}
               <div className="brutal-panel p-5">
                 <h3 className="font-display font-bold text-white mb-4 uppercase tracking-wider flex items-center gap-3">
                   <Sparkles size={18} className="text-neon-lime" strokeWidth={2.5} />
@@ -372,5 +451,23 @@ export default function JobsPage() {
         )}
       </AnimatePresence>
     </div>
+  );
+}
+
+// ── Required Suspense wrapper for useSearchParams() in Next.js 14 App Router ──
+// Without this, Next.js performs a CSR bailout that freezes all interactivity.
+export default function JobsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex-1 p-6 space-y-4">
+          {Array(5).fill(0).map((_, i) => (
+            <div key={i} className="h-32 skeleton border-2 border-border" />
+          ))}
+        </div>
+      }
+    >
+      <JobsFeed />
+    </Suspense>
   );
 }

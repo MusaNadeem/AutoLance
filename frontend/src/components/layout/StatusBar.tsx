@@ -11,7 +11,7 @@ import type { ScrapeStatus } from "@/types";
 
 function relativeTime(iso: string): string {
   const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
-  if (diff < 60)  return `${diff}s ago`;
+  if (diff < 60) return `${diff}s ago`;
   if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
   return `${Math.floor(diff / 3600)}h ago`;
 }
@@ -70,7 +70,7 @@ export function StatusBar() {
   const { is_running, last_run, next_run_at } = data;
 
   return (
-    <div className="flex items-center gap-3 px-4 py-2 bg-surface-900 border-b-2 border-border text-xs font-mono" style={{borderLeft: '3px solid #a3e635'}}>
+    <div className="flex items-center gap-3 px-4 py-2 bg-surface-900 border-b-2 border-border text-xs font-mono" style={{ borderLeft: '3px solid #a3e635' }}>
       {/* Status indicator */}
       <StatusDot status={is_running ? "running" : last_run?.status ?? "idle"} />
 
@@ -110,11 +110,10 @@ export function StatusBar() {
         onClick={handleTrigger}
         disabled={is_running}
         whileTap={{ scale: 0.95 }}
-        className={`flex items-center gap-1.5 px-3 py-1 border font-mono text-[10px] font-bold uppercase tracking-widest transition-all ${
-          is_running
-            ? "border-neon-orange text-neon-orange cursor-not-allowed opacity-60"
-            : "border-neon-lime text-neon-lime hover:bg-neon-lime hover:text-surface-900 cursor-pointer"
-        }`}
+        className={`flex items-center gap-1.5 px-3 py-1 border font-mono text-[10px] font-bold uppercase tracking-widest transition-all ${is_running
+          ? "border-neon-orange text-neon-orange cursor-not-allowed opacity-60"
+          : "border-neon-lime text-neon-lime hover:bg-neon-lime hover:text-surface-900 cursor-pointer"
+          }`}
       >
         {is_running ? (
           <>
@@ -160,7 +159,7 @@ function StatusDot({ status }: { status: string }) {
 
 function StatusBarSkeleton() {
   return (
-    <div className="flex items-center gap-3 px-4 py-2 bg-surface-900 border-b-2 border-border" style={{borderLeft: '3px solid #a3e635'}}>
+    <div className="flex items-center gap-3 px-4 py-2 bg-surface-900 border-b-2 border-border" style={{ borderLeft: '3px solid #a3e635' }}>
       <div className="h-2.5 w-2.5 rounded-full bg-surface-600 animate-pulse" />
       <div className="h-3 w-56 bg-surface-600 rounded animate-pulse" />
       <span className="text-[10px] text-slate-600 font-mono uppercase tracking-widest">Loading status...</span>
