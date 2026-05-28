@@ -163,6 +163,12 @@ export const cvProfile = {
     apiClient.put<CVProfile>("/cv/profile", data),
 };
 
+export const saved = {
+  list:   ()          => apiClient.get("/saved/"),
+  save:   (id: string) => apiClient.post(`/saved/${id}`),
+  unsave: (id: string) => apiClient.delete(`/saved/${id}`),
+};
+
 export const settings = {
   get:            ()                                   => apiClient.get("/settings/"),
   updateProfile:  (data: { full_name?: string; avatar_url?: string }) =>

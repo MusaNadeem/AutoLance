@@ -4,7 +4,7 @@ import React, { useState, useCallback, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import useSWR from "swr";
-import { fetcher } from "@/lib/api";
+import { fetcher, saved as savedApi } from "@/lib/api";
 import type { Job, JobsListParams } from "@/types";
 import { ScoreBadge } from "@/components/jobs/ScoreBadge";
 import { BidRecommendation } from "@/components/jobs/BidRecommendation";
@@ -13,7 +13,7 @@ import { FilterBar } from "@/components/jobs/FilterBar";
 import {
   Clock, Users, DollarSign,
   Zap, Shield, ShieldAlert, ShieldX, X,
-  Sparkles, SearchX,
+  Sparkles, SearchX, Bookmark, BookmarkCheck,
 } from "lucide-react";
 
 
@@ -166,6 +166,7 @@ function JobsFeed() {
   const searchParams = useSearchParams();
 
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
+  const [savedIds, setSavedIds]           = useState<Set<string>>(new Set());
   const [filterParams, setFilterParams] = useState<JobsListParams>(() =>
     paramsFromSearch(searchParams)
   );
@@ -296,11 +297,40 @@ function JobsFeed() {
                     <h3 className="font-display font-bold text-white text-base leading-snug flex-1 uppercase tracking-wide">
                       {job.title}
                     </h3>
-                    {isEasyWin && (
-                      <span className="flex items-center gap-1 px-2 py-1 bg-neon-lime text-surface-900 border-2 border-neon-lime font-mono text-xs font-bold uppercase tracking-wider shrink-0">
-                        <Zap size={12} strokeWidth={3} /> EASY WIN
-                      </span>
-                    )}
+                    <div className="flex items-center gap-2 shrink-0">
+                      {isEasyWin && (
+                        <span className="flex items-center gap-1 px-2 py-1 bg-neon-lime text-surface-900 border-2 border-neon-lime font-mono text-xs font-bold uppercase tracking-wider">
+                          <Zap size={12} strokeWidth={3} /> EASY WIN
+                        </span>
+                      )}
+                      <button
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          const isSaved = savedIds.has(job.id);
+                          setSavedIds((prev) => {
+                            const next = new Set(prev);
+                            isSaved ? next.delete(job.id) : next.add(job.id);
+                            return next;
+                          });
+                          try {
+                            isSaved ? await savedApi.unsave(job.id) : await savedApi.save(job.id);
+                          } catch {
+                            // revert on error
+                            setSavedIds((prev) => {
+                              const next = new Set(prev);
+                              isSaved ? next.add(job.id) : next.delete(job.id);
+                              return next;
+                            });
+                          }
+                        }}
+                        className="p-1 text-slate-500 hover:text-neon-lime transition-colors"
+                        title={savedIds.has(job.id) ? "Remove bookmark" : "Bookmark job"}
+                      >
+                        {savedIds.has(job.id)
+                          ? <BookmarkCheck size={16} className="text-neon-lime" strokeWidth={2.5} />
+                          : <Bookmark size={16} strokeWidth={2.5} />}
+                      </button>
+                    </div>
                   </div>
 
                   <CompactScoreBar score={scoreVal} />

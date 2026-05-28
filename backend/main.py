@@ -26,6 +26,7 @@ from app.routers.scrape import scrape_router         # Phase 2: scrape status
 from app.routers.alerts import alerts_router         # Phase 2: notification inbox
 from app.routers.analytics import router as analytics_router  # Phase 4: analytics
 from app.routers.settings import router as settings_router   # account settings
+from app.routers.saved import router as saved_router         # saved/bookmarked jobs
 
 logger = structlog.get_logger()
 
@@ -90,6 +91,7 @@ app.include_router(alerts_router, prefix=API_PREFIX)         # Phase 2: /alerts/
 app.include_router(scrape_router, prefix=API_PREFIX)         # Phase 2: /scrape/status, /scrape/trigger
 app.include_router(analytics_router, prefix=API_PREFIX)      # Phase 4: /analytics
 app.include_router(settings_router, prefix=API_PREFIX)       # /settings
+app.include_router(saved_router, prefix=API_PREFIX)          # /saved
 
 
 # ── Health Endpoints ──────────────────────────────────────
