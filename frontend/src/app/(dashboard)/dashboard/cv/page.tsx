@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { useDropzone } from "react-dropzone";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Upload, CheckCircle2, Brain,
-  Zap, DollarSign, Target, RefreshCw
+  Zap, DollarSign, Target, RefreshCw, AlertTriangle
 } from "lucide-react";
+import { cv as cvApi, cvProfile } from "@/lib/api";
 
 type ParseStatus = "idle" | "uploading" | "parsing" | "done" | "error";
 
@@ -38,27 +39,69 @@ const levelColors: Record<string, string> = {
 };
 
 export default function CVPage() {
-  const [status, setStatus] = useState<ParseStatus>("idle");
+  const [status,   setStatus]   = useState<ParseStatus>("idle");
   const [fileName, setFileName] = useState<string>("");
-  const [profile, setProfile] = useState<typeof mockProfile | null>(null);
+  const [profile,  setProfile]  = useState<typeof mockProfile | null>(null);
   const [progress, setProgress] = useState(0);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const onDrop = useCallback(async (files: File[]) => {
     const file = files[0];
     if (!file) return;
 
     setFileName(file.name);
+    setUploadError(null);
     setStatus("uploading");
     setProgress(10);
 
-    setTimeout(() => { setStatus("parsing"); setProgress(40); }, 800);
-    setTimeout(() => { setProgress(70); }, 2000);
-    setTimeout(() => { setProgress(90); }, 3500);
-    setTimeout(() => {
-      setStatus("done");
-      setProgress(100);
-      setProfile(mockProfile);
-    }, 5000);
+    let cvId: string;
+    try {
+      const res = await cvApi.upload(file);
+      cvId = res.data.cv_id;
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { detail?: string } } };
+      setUploadError(err?.response?.data?.detail ?? "Upload failed — check file type and size");
+      setStatus("error");
+      return;
+    }
+
+    setStatus("parsing");
+    setProgress(40);
+
+    // Poll GET /cv/{id} until parsing_status is done or failed
+    let attempts = 0;
+    pollRef.current = setInterval(async () => {
+      attempts++;
+      setProgress(Math.min(40 + attempts * 8, 92));
+      try {
+        const res = await cvApi.get(cvId);
+        const { parsing_status, parsed_data } = res.data;
+        if (parsing_status === "done") {
+          clearInterval(pollRef.current!);
+          setProgress(100);
+          setStatus("done");
+          if (parsed_data?.skills) {
+            setProfile(parsed_data as typeof mockProfile);
+          } else {
+            // Fallback: fetch from profile endpoint
+            try {
+              const pr = await cvProfile.get();
+              setProfile(pr.data as unknown as typeof mockProfile);
+            } catch {/* ok */}
+          }
+        } else if (parsing_status === "failed" || attempts > 30) {
+          clearInterval(pollRef.current!);
+          setUploadError("CV parsing failed. Try a different file or re-upload.");
+          setStatus("error");
+        }
+      } catch {
+        if (attempts > 30) {
+          clearInterval(pollRef.current!);
+          setStatus("error");
+        }
+      }
+    }, 2000);
   }, []);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -86,6 +129,8 @@ export default function CVPage() {
             ? "border-brand-500 bg-brand-500/5 glow-brand"
             : status === "done"
             ? "border-emerald-500/40 bg-emerald-500/5"
+            : status === "error"
+            ? "border-neon-pink/40 bg-neon-pink/5 hover:border-neon-pink/60"
             : "border-surface-5 hover:border-brand-500/50 hover:bg-surface-3/50"
         }`}
       >
@@ -140,6 +185,17 @@ export default function CVPage() {
               </div>
               <h3 className="text-lg font-semibold text-white mb-1">Profile Built Successfully</h3>
               <p className="text-slate-400 text-sm">{fileName}</p>
+            </motion.div>
+          )}
+
+          {status === "error" && (
+            <motion.div key="error" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+              <div className="w-16 h-16 rounded-2xl bg-neon-pink/10 border border-neon-pink/30 flex items-center justify-center mx-auto mb-4">
+                <AlertTriangle className="w-8 h-8 text-neon-pink" />
+              </div>
+              <h3 className="text-lg font-semibold text-white mb-1">Upload Failed</h3>
+              <p className="text-slate-400 text-sm mb-2">{uploadError}</p>
+              <p className="text-slate-500 text-xs">Click to try again</p>
             </motion.div>
           )}
         </AnimatePresence>
