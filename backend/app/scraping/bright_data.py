@@ -50,12 +50,14 @@ class BrightDataClient:
 
     # ── Unlocker API fetch ─────────────────────────────────────────────────
 
-    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=2, min=10, max=60))
-    def _fetch_search_page(self, url: str) -> str:
+    @retry(stop=stop_after_attempt(2), wait=wait_exponential(multiplier=1, min=5, max=20))
+    def _fetch_search_page(self, url: str, timeout: int = 120) -> str:
         """
         Fetch an Upwork search results page through Bright Data Unlocker API.
         Returns the raw HTML string. Raises on HTTP error or timeout.
-        The Upwork search page takes 90-180s; 300s timeout handles this reliably.
+
+        Timeout is configurable so callers can set a tighter budget when
+        fetching multiple URLs in parallel.
         """
         resp = requests.post(
             f"{self.base_url}/request",
@@ -64,14 +66,16 @@ class BrightDataClient:
                 "Content-Type": "application/json",
             },
             json={"zone": self.unlocker_zone, "url": url, "format": "json"},
-            timeout=300,
+            timeout=timeout,
         )
         resp.raise_for_status()
         outer = resp.json()
         html = outer.get("body", "")
         inner_status = outer.get("status_code", 0)
         if inner_status and int(inner_status) >= 400:
-            raise RuntimeError(f"Upwork returned HTTP {inner_status} for {url}")
+            raise RuntimeError(f"Upwork returned HTTP {inner_status}")
+        if not html or len(html) < 10_000:
+            raise RuntimeError(f"Response too short ({len(html)} bytes) — likely a block page")
         return html
 
     # ── __NUXT__ parser ────────────────────────────────────────────────────
@@ -364,13 +368,26 @@ class BrightDataClient:
             for kw in keywords if kw.strip()
         ]
 
+    def _scrape_single_url(self, url: str) -> tuple[str, list[dict]]:
+        """
+        Fetch and parse one search URL. Returns (keyword, jobs).
+        Raises on failure so the caller can log and continue.
+        """
+        keyword = url.split("q=")[1].split("&")[0] if "q=" in url else url
+        html = self._fetch_search_page(url, timeout=120)
+        jobs = self._parse_nuxt_html(html)
+        return keyword, jobs
+
     def scrape_jobs(self, keywords: Optional[list[str]] = None) -> list[dict]:
         """
         Scrape Upwork jobs via Bright Data Unlocker API + __NUXT__ HTML parsing.
 
-        `keywords` is a list of plain search terms (e.g. ["Python", "FastAPI"]).
-        When None, falls back to the hardcoded UPWORK_SEARCH_URLS defaults.
-        Falls back to mock data when credentials are absent or all fetches fail.
+        `keywords` is a list of plain search terms built from the user's profile.
+        When None, uses the hardcoded UPWORK_SEARCH_URLS defaults.
+
+        URLs are fetched in parallel (max 3 concurrent) to reduce total wall time.
+        Partial success is accepted: if any URL returns jobs, those are used.
+        Falls back to mock data only when credentials are absent or ALL fetches fail.
         Called synchronously from Celery tasks via run_in_executor.
         """
         if not self.api_key or not self.unlocker_zone:
@@ -382,26 +399,36 @@ class BrightDataClient:
         )
         logger.info("Starting scrape", keywords=keywords or "defaults", urls=len(targets))
 
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+
         all_jobs: list[dict] = []
         seen_ids: set[str] = set()
+        successes = 0
+        failures  = 0
 
-        for url in targets:
-            keyword = url.split("q=")[1].split("&")[0] if "q=" in url else url
-            try:
-                html = self._fetch_search_page(url)
-                jobs = self._parse_nuxt_html(html)
-                new = [j for j in jobs if j["upwork_job_id"] not in seen_ids]
-                seen_ids.update(j["upwork_job_id"] for j in new)
-                all_jobs.extend(new)
-                logger.info("Scraped jobs", keyword=keyword, count=len(new))
-            except Exception as e:
-                logger.error("Failed to scrape URL", keyword=keyword, error=str(e))
+        # Fetch up to 3 URLs in parallel; each has its own 120s timeout + 1 retry
+        with ThreadPoolExecutor(max_workers=3) as pool:
+            futures = {pool.submit(self._scrape_single_url, url): url for url in targets}
+            for future in as_completed(futures, timeout=300):
+                url = futures[future]
+                keyword = url.split("q=")[1].split("&")[0] if "q=" in url else url
+                try:
+                    kw, jobs = future.result()
+                    new = [j for j in jobs if j["upwork_job_id"] not in seen_ids]
+                    seen_ids.update(j["upwork_job_id"] for j in new)
+                    all_jobs.extend(new)
+                    successes += 1
+                    logger.info("Scraped jobs", keyword=kw, count=len(new))
+                except Exception as e:
+                    failures += 1
+                    logger.error("Failed to scrape URL", keyword=keyword, error=str(e)[:200])
+
+        logger.info("Scrape complete", total=len(all_jobs), success_urls=successes, failed_urls=failures)
 
         if not all_jobs:
-            logger.warning("All scrape attempts failed — using mock data")
+            logger.warning("All %d URL(s) failed — using mock data", failures)
             return self._get_mock_jobs()
 
-        logger.info("Scrape complete", total=len(all_jobs))
         return all_jobs
 
     # ── DCA collector (legacy — kept for backward compat) ──────────────────
