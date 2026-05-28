@@ -100,10 +100,12 @@ export const coverLetters = {
   generate: (data: {
     job_id: string;
     style?: string;
-    tone?: string;           // Phase 3: professional | friendly | bold
+    tone?: string;
     custom_instructions?: string;
   }) => apiClient.post("/cover-letters/generate", data),
   list: () => apiClient.get("/cover-letters/"),
+  listForJob: (job_id: string) =>
+    apiClient.get("/cover-letters/", { params: { job_id } }),
   update: (id: string, content: string) =>
     apiClient.patch(`/cover-letters/${id}`, { content }),
 };
@@ -155,6 +157,15 @@ export const cvProfile = {
   get: () => apiClient.get<CVProfile>("/cv/profile"),
   update: (data: Partial<CVProfile>) =>
     apiClient.put<CVProfile>("/cv/profile", data),
+};
+
+export const settings = {
+  get:            ()                                   => apiClient.get("/settings/"),
+  updateProfile:  (data: { full_name?: string; avatar_url?: string }) =>
+                    apiClient.put("/settings/profile", data),
+  changePassword: (data: { current_password: string; new_password: string }) =>
+                    apiClient.put("/settings/password", data),
+  deleteAccount:  ()                                   => apiClient.delete("/settings/account"),
 };
 
 export const fetcher = (url: string) =>

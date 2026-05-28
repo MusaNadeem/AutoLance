@@ -234,25 +234,37 @@ async def list_proposals(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    query = select(Proposal).where(Proposal.user_id == current_user.id)
+    query = (
+        select(Proposal, Job, MatchScore)
+        .join(Job, Proposal.job_id == Job.id)
+        .outerjoin(
+            MatchScore,
+            (MatchScore.job_id == Proposal.job_id) & (MatchScore.user_id == current_user.id),
+        )
+        .where(Proposal.user_id == current_user.id)
+    )
     if status:
         query = query.where(Proposal.status == status)
     query = query.order_by(desc(Proposal.created_at))
 
     result = await db.execute(query)
-    proposals = result.scalars().all()
+    rows = result.all()
     return [
         {
             "id": str(p.id),
             "job_id": str(p.job_id),
+            "job_title": j.title if j else None,
+            "job_url": j.url if j else None,
             "status": p.status,
             "bid_amount": float(p.bid_amount) if p.bid_amount else None,
             "bid_type": p.bid_type,
+            "match_score": m.overall_score if m else None,
             "sent_at": p.sent_at,
             "outcome_value": float(p.outcome_value) if p.outcome_value else None,
+            "notes": p.notes,
             "created_at": p.created_at,
         }
-        for p in proposals
+        for p, j, m in rows
     ]
 
 

@@ -4,9 +4,9 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Copy, Check, ExternalLink, RefreshCw, Loader2,
-  AlertTriangle,
+  AlertTriangle, Send,
 } from "lucide-react";
-import { coverLetters } from "@/lib/api";
+import { coverLetters, proposals } from "@/lib/api";
 import type { Job, ProposalTone } from "@/types";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -43,9 +43,12 @@ export function ProposalPanel({
   const [tone, setTone]           = useState<ProposalTone>("professional");
   const [generating, setGenerating] = useState(false);
   const [error, setError]         = useState<string | null>(null);
-  const [copied, setCopied]       = useState(false);
-  const [isDirty, setIsDirty]     = useState(false);
+  const [copied, setCopied]           = useState(false);
+  const [isDirty, setIsDirty]         = useState(false);
   const [confirmRegen, setConfirmRegen] = useState(false);
+  const [saving, setSaving]           = useState(false);
+  const [saved, setSaved]             = useState(false);
+  const [letterId, setLetterId]       = useState<string | null>(null);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const chars  = text.length;
@@ -68,7 +71,9 @@ export function ProposalPanel({
         tone: selectedTone,
       });
       setText(res.data.content ?? "");
+      setLetterId(res.data.id ?? null);
       setIsDirty(false);
+      setSaved(false);
     } catch (e: unknown) {
       const err = e as { response?: { data?: { detail?: string } } };
       setError(err?.response?.data?.detail ?? "Failed to generate proposal");
@@ -195,7 +200,7 @@ export function ProposalPanel({
       </div>
 
       {/* Action buttons */}
-      <div className="flex gap-2 pt-1">
+      <div className="flex gap-2 pt-1 flex-wrap">
         <motion.button
           id="copy-proposal-btn"
           whileTap={{ scale: 0.97 }}
@@ -210,10 +215,39 @@ export function ProposalPanel({
               </motion.span>
             ) : (
               <motion.span key="copy" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex items-center gap-2">
-                <Copy size={14} strokeWidth={2.5} /> Copy to Clipboard
+                <Copy size={14} strokeWidth={2.5} /> Copy
               </motion.span>
             )}
           </AnimatePresence>
+        </motion.button>
+
+        {/* Apply + Track */}
+        <motion.button
+          whileTap={{ scale: 0.97 }}
+          disabled={!text || generating || saving || saved}
+          onClick={async () => {
+            setSaving(true);
+            try {
+              await proposals.create({
+                job_id: job.id,
+                cover_letter_id: letterId ?? undefined,
+                bid_amount: job.bid?.recommended ?? undefined,
+              });
+              setSaved(true);
+            } finally {
+              setSaving(false);
+            }
+          }}
+          className="flex-1 flex items-center justify-center gap-2 py-3 border-2 font-mono text-xs font-bold uppercase tracking-widest transition-all disabled:opacity-40 disabled:cursor-not-allowed border-neon-cyan text-neon-cyan hover:bg-neon-cyan/10 data-[saved=true]:border-emerald-400 data-[saved=true]:text-emerald-400"
+          data-saved={saved}
+        >
+          {saving ? (
+            <><Loader2 size={14} className="animate-spin" /> Saving...</>
+          ) : saved ? (
+            <><Check size={14} /> Tracked!</>
+          ) : (
+            <><Send size={14} strokeWidth={2.5} /> Apply + Track</>
+          )}
         </motion.button>
 
         {job.url && (
