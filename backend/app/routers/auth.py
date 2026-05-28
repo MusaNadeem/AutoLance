@@ -96,6 +96,78 @@ async def refresh(body: RefreshRequest, db: AsyncSession = Depends(get_db)):
     )
 
 
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str
+
+
+@router.post("/forgot-password", status_code=200)
+async def forgot_password(body: ForgotPasswordRequest, db: AsyncSession = Depends(get_db)):
+    """
+    Generate a password-reset token and email it to the user.
+    Always returns 200 so we don't reveal whether the email exists.
+    """
+    import uuid as _uuid
+    from datetime import datetime, timezone, timedelta
+
+    result = await db.execute(select(User).where(User.email == body.email, User.is_active == True))  # noqa: E712
+    user = result.scalar_one_or_none()
+
+    if user:
+        token = _uuid.uuid4().hex
+        user.reset_token = token
+        user.reset_token_expires = datetime.now(timezone.utc) + timedelta(hours=1)
+
+        # Best-effort email send — never block the response
+        try:
+            from app.services.notification import notification_service
+            from app.config import settings as app_settings
+            frontend_url = getattr(app_settings, "NEXT_PUBLIC_API_URL", "http://localhost:3000").replace(":8000", ":3000")
+            await notification_service.send_transactional_email(
+                to_email=user.email,
+                to_name=user.full_name or "there",
+                subject="Reset your AutoLance password",
+                html_body=(
+                    f"<p>Hi {user.full_name or 'there'},</p>"
+                    f"<p>Click the link below to reset your password. It expires in 1 hour.</p>"
+                    f"<p><a href='{frontend_url}/reset-password?token={token}'>Reset Password</a></p>"
+                    f"<p>If you didn't request this, ignore this email.</p>"
+                ),
+            )
+        except Exception:
+            pass
+
+    return {"detail": "If that email exists we've sent a reset link"}
+
+
+@router.post("/reset-password", status_code=200)
+async def reset_password(body: ResetPasswordRequest, db: AsyncSession = Depends(get_db)):
+    """Validate reset token and set a new password."""
+    from datetime import datetime, timezone
+
+    result = await db.execute(select(User).where(User.reset_token == body.token))
+    user = result.scalar_one_or_none()
+
+    if not user or not user.reset_token_expires:
+        raise HTTPException(status_code=400, detail="Invalid or expired reset token")
+
+    if user.reset_token_expires < datetime.now(timezone.utc):
+        raise HTTPException(status_code=400, detail="Reset token has expired")
+
+    if len(body.new_password) < 8:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
+
+    user.password_hash = hash_password(body.new_password)
+    user.reset_token = None
+    user.reset_token_expires = None
+
+    return {"detail": "Password updated successfully"}
+
+
 @router.get("/me")
 async def me(current_user: User = Depends(get_current_user)):
     """Get current authenticated user."""

@@ -83,7 +83,12 @@ export default function LoginPage() {
                 </button>
               </div>
             </div>
-            <button type="submit" disabled={loading} className="btn-primary w-full flex items-center justify-center gap-3 py-4 mt-8">
+            <div className="flex justify-end">
+              <Link href="/forgot-password" className="text-slate-400 hover:text-neon-lime font-mono text-xs uppercase tracking-widest transition-colors">
+                Forgot password?
+              </Link>
+            </div>
+            <button type="submit" disabled={loading} className="btn-primary w-full flex items-center justify-center gap-3 py-4 mt-2">
               {loading ? (
                 <><Loader2 size={20} className="animate-spin" strokeWidth={2.5} /> AUTHENTICATING...</>
               ) : (

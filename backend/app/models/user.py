@@ -20,6 +20,9 @@ class User(Base):
     is_verified = Column(Boolean, default=False)
     stripe_customer_id = Column(String(255))
     subscription_tier = Column(String(50), default="free")
+    reset_token = Column(String(255), nullable=True)
+    reset_token_expires = Column(DateTime(timezone=True), nullable=True)
+    verification_token = Column(String(255), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 

@@ -154,6 +154,34 @@ class NotificationService:
             return False
 
 
+    async def send_transactional_email(
+        self,
+        to_email: str,
+        to_name: str,
+        subject: str,
+        html_body: str,
+    ) -> bool:
+        """Send a generic transactional email (password reset, verification, etc.)."""
+        if not settings.SENDGRID_API_KEY:
+            logger.warning("SendGrid not configured, skipping transactional email")
+            return False
+        try:
+            from sendgrid import SendGridAPIClient
+            from sendgrid.helpers.mail import Mail
+            message = Mail(
+                from_email=(settings.SENDGRID_FROM_EMAIL, settings.SENDGRID_FROM_NAME),
+                to_emails=[(to_email, to_name)],
+                subject=subject,
+                html_content=html_body,
+            )
+            sg = SendGridAPIClient(settings.SENDGRID_API_KEY)
+            sg.send(message)
+            return True
+        except Exception as e:
+            logger.error("Transactional email failed", error=str(e))
+            return False
+
+
 notification_service = NotificationService()
 
 

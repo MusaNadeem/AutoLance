@@ -62,6 +62,10 @@ export const auth = {
   me: () => apiClient.get("/auth/me"),
   refresh: (token: string) =>
     apiClient.post("/auth/refresh", { refresh_token: token }),
+  forgotPassword: (email: string) =>
+    apiClient.post("/auth/forgot-password", { email }),
+  resetPassword: (token: string, new_password: string) =>
+    apiClient.post("/auth/reset-password", { token, new_password }),
 };
 
 export const cv = {
