@@ -4,8 +4,9 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Copy, Check, ExternalLink, RefreshCw, Loader2,
-  AlertTriangle, Send,
+  AlertTriangle, Send, History, ChevronDown,
 } from "lucide-react";
+import useSWR from "swr";
 import { coverLetters, proposals } from "@/lib/api";
 import type { Job, ProposalTone } from "@/types";
 
@@ -49,6 +50,13 @@ export function ProposalPanel({
   const [saving, setSaving]           = useState(false);
   const [saved, setSaved]             = useState(false);
   const [letterId, setLetterId]       = useState<string | null>(null);
+  const [showHistory, setShowHistory] = useState(false);
+
+  const { data: history } = useSWR(
+    showHistory ? `/cover-letters?job_id=${job.id}` : null,
+    () => coverLetters.listForJob(job.id).then((r) => r.data as Array<{ id: string; style: string; variant_index: number; created_at: string }>),
+    { revalidateOnFocus: false }
+  );
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const chars  = text.length;
@@ -262,6 +270,52 @@ export function ProposalPanel({
             Upwork
           </a>
         )}
+      </div>
+
+      {/* Cover letter history */}
+      <div className="border-t border-border pt-3">
+        <button
+          onClick={() => setShowHistory(!showHistory)}
+          className="flex items-center gap-2 text-[10px] font-mono font-bold text-slate-500 hover:text-white uppercase tracking-widest transition-colors w-full"
+        >
+          <History size={11} />
+          Past Variants
+          <ChevronDown size={11} className={`ml-auto transition-transform ${showHistory ? "rotate-180" : ""}`} />
+        </button>
+        <AnimatePresence>
+          {showHistory && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              className="overflow-hidden"
+            >
+              <div className="pt-2 flex flex-wrap gap-2">
+                {!history && (
+                  <span className="text-xs text-slate-600 font-mono">Loading...</span>
+                )}
+                {history?.length === 0 && (
+                  <span className="text-xs text-slate-600 font-mono">No past variants yet.</span>
+                )}
+                {history?.map((l) => (
+                  <button
+                    key={l.id}
+                    onClick={() => {
+                      // Reload this variant — fetch content from backend via re-generate with same id
+                      coverLetters.list().then((r) => {
+                        const found = (r.data as Array<{id: string; content?: string}>).find((x) => x.id === l.id);
+                        if (found?.content) { setText(found.content); setIsDirty(false); setLetterId(l.id); }
+                      });
+                    }}
+                    className="px-2 py-1 bg-surface-4 border border-surface-5 text-slate-300 hover:border-neon-lime hover:text-neon-lime text-[10px] font-mono uppercase tracking-wider transition-colors"
+                  >
+                    v{l.variant_index} · {l.style}
+                  </button>
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* Regenerate confirm dialog */}

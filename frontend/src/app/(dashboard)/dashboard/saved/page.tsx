@@ -63,7 +63,7 @@ export default function SavedJobsPage() {
 
       <div className="grid gap-4">
         {allJobs.map((job, i) => {
-          const scoreVal = job.score ? Math.round(job.score.overall * 100) : null;
+          const scoreVal = job.score?.overall != null ? Math.round(job.score.overall * 100) : null;
           return (
             <motion.div
               key={job.id}

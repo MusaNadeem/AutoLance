@@ -143,14 +143,16 @@ async def generate_cover_letter(
 
 @cover_letters_router.get("/")
 async def list_cover_letters(
+    job_id: Optional[str] = None,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    import uuid as _uuid
+    query = select(CoverLetter).where(CoverLetter.user_id == current_user.id)
+    if job_id:
+        query = query.where(CoverLetter.job_id == _uuid.UUID(job_id))
     result = await db.execute(
-        select(CoverLetter)
-        .where(CoverLetter.user_id == current_user.id)
-        .order_by(desc(CoverLetter.created_at))
-        .limit(50)
+        query.order_by(desc(CoverLetter.created_at)).limit(50)
     )
     letters = result.scalars().all()
     return [
