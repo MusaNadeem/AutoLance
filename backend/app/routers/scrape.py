@@ -71,9 +71,47 @@ async def trigger_scrape(
     if running:
         raise HTTPException(status_code=409, detail="A scrape is already running")
 
+    # Require the user to have a scanned CV profile before scraping.
+    # The niche and top skills from the profile determine what gets searched.
+    from app.models.profile import FreelancerProfile
+    profile_result = await db.execute(
+        select(FreelancerProfile).where(FreelancerProfile.user_id == current_user.id)
+    )
+    profile = profile_result.scalar_one_or_none()
+
+    if not profile or not (profile.skills or profile.niche):
+        raise HTTPException(
+            status_code=400,
+            detail="Upload and scan your CV first. AutoLance uses your niche and skills to find relevant jobs.",
+        )
+
+    # Build targeted keywords from the user's profile.
+    seen: set[str] = set()
+    keywords: list[str] = []
+
+    # 1. Niche is the primary keyword — most specific signal
+    if profile.niche:
+        keywords.append(profile.niche)
+        seen.add(profile.niche.lower())
+
+    # 2. Top skills sorted by years of experience (up to 5 more)
+    skills: list[dict] = profile.skills or []
+    for s in sorted(skills, key=lambda s: s.get("years", 0), reverse=True):
+        name = (s.get("name") or "").strip()
+        if name and name.lower() not in seen and len(keywords) < 6:
+            keywords.append(name)
+            seen.add(name.lower())
+
+    # 3. Specializations to round out to max 6 keywords
+    for spec in (profile.specializations or []):
+        spec = (spec or "").strip()
+        if spec and spec.lower() not in seen and len(keywords) < 6:
+            keywords.append(spec)
+            seen.add(spec.lower())
+
     from app.workers.scrape_tasks import manual_scrape
-    task = manual_scrape.apply_async(queue="scraping")
-    return {"task_id": task.id, "queued": True}
+    task = manual_scrape.apply_async(args=[keywords], queue="scraping")
+    return {"task_id": task.id, "queued": True, "keywords": keywords}
 
 
 @scrape_router.get("/history")

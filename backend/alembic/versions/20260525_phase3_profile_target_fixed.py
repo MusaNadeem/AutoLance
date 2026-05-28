@@ -1,12 +1,12 @@
 """
 Phase 3 Migration — add target_fixed_min/max to freelancer_profiles
-Revision ID: 20260525_phase3_profile_target_fixed
+Revision ID: 20260525_phase3
 """
 from typing import Sequence, Union
 from alembic import op
 import sqlalchemy as sa
 
-revision: str = "20260525_phase3_profile_target_fixed"
+revision: str = "20260525_phase3"
 down_revision: Union[str, None] = "20260525_phase2"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None

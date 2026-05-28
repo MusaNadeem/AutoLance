@@ -355,9 +355,21 @@ class BrightDataClient:
 
     # ── Main public scraping method ────────────────────────────────────────
 
-    def scrape_jobs(self, urls: Optional[list[str]] = None) -> list[dict]:
+    @staticmethod
+    def _keywords_to_urls(keywords: list[str]) -> list[str]:
+        """Convert plain keyword strings to Upwork search URLs."""
+        import urllib.parse
+        return [
+            f"https://www.upwork.com/nx/search/jobs?q={urllib.parse.quote_plus(kw)}&sort=recency"
+            for kw in keywords if kw.strip()
+        ]
+
+    def scrape_jobs(self, keywords: Optional[list[str]] = None) -> list[dict]:
         """
         Scrape Upwork jobs via Bright Data Unlocker API + __NUXT__ HTML parsing.
+
+        `keywords` is a list of plain search terms (e.g. ["Python", "FastAPI"]).
+        When None, falls back to the hardcoded UPWORK_SEARCH_URLS defaults.
         Falls back to mock data when credentials are absent or all fetches fail.
         Called synchronously from Celery tasks via run_in_executor.
         """
@@ -365,20 +377,25 @@ class BrightDataClient:
             logger.warning("Bright Data credentials not configured — using mock data")
             return self._get_mock_jobs()
 
-        targets = urls or UPWORK_SEARCH_URLS
+        targets = (
+            self._keywords_to_urls(keywords) if keywords else UPWORK_SEARCH_URLS
+        )
+        logger.info("Starting scrape", keywords=keywords or "defaults", urls=len(targets))
+
         all_jobs: list[dict] = []
         seen_ids: set[str] = set()
 
         for url in targets:
+            keyword = url.split("q=")[1].split("&")[0] if "q=" in url else url
             try:
                 html = self._fetch_search_page(url)
                 jobs = self._parse_nuxt_html(html)
                 new = [j for j in jobs if j["upwork_job_id"] not in seen_ids]
                 seen_ids.update(j["upwork_job_id"] for j in new)
                 all_jobs.extend(new)
-                logger.info("Scraped jobs", url=url.split("q=")[1].split("&")[0] if "q=" in url else url, count=len(new))
+                logger.info("Scraped jobs", keyword=keyword, count=len(new))
             except Exception as e:
-                logger.error("Failed to scrape URL", url=url, error=str(e))
+                logger.error("Failed to scrape URL", keyword=keyword, error=str(e))
 
         if not all_jobs:
             logger.warning("All scrape attempts failed — using mock data")

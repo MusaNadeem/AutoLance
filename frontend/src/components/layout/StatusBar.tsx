@@ -27,7 +27,8 @@ const fetcher = () => scrape.status().then((r) => r.data);
 export function StatusBar() {
   const prevRunning = useRef<boolean | null>(null);
   const triggeringRef = useRef(false);
-  const [, setTick] = useState(0);
+  const [, setTick]         = useState(0);
+  const [scrapeError, setScrapeError] = useState<string | null>(null);
 
   useEffect(() => {
     const interval = setInterval(() => setTick((t) => t + 1), 1_000);
@@ -53,13 +54,15 @@ export function StatusBar() {
   const handleTrigger = async () => {
     if (triggeringRef.current || data?.is_running) return;
     triggeringRef.current = true;
+    setScrapeError(null);
     try {
       await scrape.trigger();
       await mutateStatus();
     } catch (e: unknown) {
-      const err = e as { response?: { data?: { detail?: string } } };
-      const detail = err?.response?.data?.detail || "Trigger failed";
-      console.error(detail);
+      const err = e as { response?: { data?: { detail?: string }; status?: number } };
+      const detail = err?.response?.data?.detail ?? "Trigger failed";
+      setScrapeError(detail);
+      setTimeout(() => setScrapeError(null), 6000);
     } finally {
       triggeringRef.current = false;
     }
@@ -94,8 +97,19 @@ export function StatusBar() {
         )}
       </span>
 
+      {/* CV-required error toast */}
+      {scrapeError && (
+        <span className="flex items-center gap-1 text-neon-orange text-[10px] font-mono">
+          <AlertTriangle size={10} />
+          {scrapeError.length > 70 ? scrapeError.slice(0, 70) + "…" : scrapeError}
+          {scrapeError.toLowerCase().includes("cv") && (
+            <a href="/dashboard/cv" className="underline hover:text-white ml-1">Upload CV →</a>
+          )}
+        </span>
+      )}
+
       {/* Next run countdown */}
-      {next_run_at && !is_running && (
+      {next_run_at && !is_running && !scrapeError && (
         <span className="text-slate-600 flex items-center gap-1">
           <Clock size={10} />
           Next in {minutesUntil(next_run_at)}m

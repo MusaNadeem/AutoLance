@@ -81,12 +81,15 @@ async def _async_scrape(task):
 
 
 @celery_app.task(name="app.workers.scrape_tasks.manual_scrape")
-def manual_scrape(urls: list[str] = None):
-    """Trigger a manual scrape (user-initiated via POST /scrape/trigger)."""
-    asyncio.get_event_loop().run_until_complete(_async_manual_scrape(urls))
+def manual_scrape(keywords: list[str] = None):
+    """Trigger a manual scrape (user-initiated via POST /scrape/trigger).
+    `keywords` is a list of plain search terms derived from the user's profile,
+    or None to use the hardcoded default keyword set.
+    """
+    asyncio.get_event_loop().run_until_complete(_async_manual_scrape(keywords))
 
 
-async def _async_manual_scrape(urls):
+async def _async_manual_scrape(keywords):
     started_at = datetime.now(timezone.utc)
 
     async with get_db_context() as db:
@@ -101,10 +104,11 @@ async def _async_manual_scrape(urls):
         await db.commit()
 
         try:
-            # Scrape via Bright Data Unlocker API + Upwork GraphQL
+            # Scrape via Bright Data Unlocker API + __NUXT__ parsing.
+            # Keywords come from the triggering user's profile skills/niche.
             loop = asyncio.get_event_loop()
             raw_jobs = await loop.run_in_executor(
-                None, lambda: bright_data.scrape_jobs(urls)
+                None, lambda: bright_data.scrape_jobs(keywords)
             )
             stats = await pipeline.ingest_batch(db, raw_jobs, str(run.id))
 
