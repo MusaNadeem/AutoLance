@@ -4,6 +4,7 @@ Fetches Upwork job search pages via Bright Data Unlocker API,
 then parses the __NUXT__ server-rendered JSON embedded in the HTML.
 """
 import asyncio
+import hashlib
 import re
 from datetime import datetime, timezone
 from typing import Optional
@@ -50,15 +51,49 @@ class BrightDataClient:
 
     # ── Unlocker API fetch ─────────────────────────────────────────────────
 
+    # ── Redis HTML cache ───────────────────────────────────────────────────
+    # Caches successful Unlocker API responses for SCRAPE_CACHE_TTL seconds.
+    # The Celery beat runs every 15 min; a 14-min cache ensures each beat cycle
+    # makes at most one real Bright Data request per URL, regardless of how many
+    # manual triggers happen in between.
+
+    _CACHE_TTL = 840  # 14 minutes
+
+    def _cache_key(self, url: str) -> str:
+        return f"scrape:html:{hashlib.md5(url.encode()).hexdigest()}"
+
+    def _get_cached_html(self, url: str) -> Optional[str]:
+        try:
+            import redis as _redis
+            r = _redis.from_url(settings.REDIS_URL, socket_connect_timeout=2)
+            val = r.get(self._cache_key(url))
+            return val.decode("utf-8") if val else None
+        except Exception:
+            return None
+
+    def _set_cached_html(self, url: str, html: str) -> None:
+        try:
+            import redis as _redis
+            r = _redis.from_url(settings.REDIS_URL, socket_connect_timeout=2)
+            r.setex(self._cache_key(url), self._CACHE_TTL, html.encode("utf-8"))
+        except Exception:
+            pass
+
+    # ── Unlocker API fetch ─────────────────────────────────────────────────
+
     @retry(stop=stop_after_attempt(2), wait=wait_exponential(multiplier=1, min=5, max=20))
     def _fetch_search_page(self, url: str, timeout: int = 120) -> str:
         """
         Fetch an Upwork search results page through Bright Data Unlocker API.
+        Checks Redis cache first — a cache hit avoids the slow Bright Data call
+        entirely and returns in milliseconds.
         Returns the raw HTML string. Raises on HTTP error or timeout.
-
-        Timeout is configurable so callers can set a tighter budget when
-        fetching multiple URLs in parallel.
         """
+        cached = self._get_cached_html(url)
+        if cached:
+            logger.info("HTML served from cache", url=url.split("q=")[1].split("&")[0] if "q=" in url else url[:50])
+            return cached
+
         resp = requests.post(
             f"{self.base_url}/request",
             headers={
@@ -76,6 +111,8 @@ class BrightDataClient:
             raise RuntimeError(f"Upwork returned HTTP {inner_status}")
         if not html or len(html) < 10_000:
             raise RuntimeError(f"Response too short ({len(html)} bytes) — likely a block page")
+
+        self._set_cached_html(url, html)
         return html
 
     # ── __NUXT__ parser ────────────────────────────────────────────────────
@@ -394,9 +431,12 @@ class BrightDataClient:
             logger.warning("Bright Data credentials not configured — using mock data")
             return self._get_mock_jobs()
 
-        targets = (
-            self._keywords_to_urls(keywords) if keywords else UPWORK_SEARCH_URLS
-        )
+        if keywords:
+            # Profile-derived: cap at 3 — niche + top 2 skills are the most
+            # targeted. Fetching all 6 keywords multiplies latency for minimal gain.
+            targets = self._keywords_to_urls(keywords[:3])
+        else:
+            targets = UPWORK_SEARCH_URLS
         logger.info("Starting scrape", keywords=keywords or "defaults", urls=len(targets))
 
         from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -480,26 +520,265 @@ class BrightDataClient:
     def _get_mock_jobs(self) -> list[dict]:
         return [
             {
-                "upwork_job_id": f"mock_{i}",
-                "title": f"Senior Python Developer for FastAPI Project {i}",
-                "description": "We need an experienced Python developer...",
-                "url": f"https://www.upwork.com/jobs/mock-{i}",
-                "budget_type": "fixed",
-                "budget_min": 2000 + (i * 500),
-                "budget_max": 5000 + (i * 500),
-                "required_skills": ["Python", "FastAPI", "PostgreSQL", "Redis", "Docker"],
-                "experience_level": "Expert",
-                "project_length": "1 to 3 months",
-                "proposal_count": 5 + i,
-                "payment_verified": True,
-                "client_country": "United States",
-                "client_total_spent": 15000 + (i * 3000),
-                "client_hire_rate": 75.5,
-                "client_total_hires": 12 + i,
-                "client_rating": 4.9,
-                "posted_at": "2026-05-23T10:00:00Z",
-            }
-            for i in range(1, 11)
+                "upwork_job_id": "mock_001",
+                "title": "Build AI-powered SaaS dashboard with FastAPI + React",
+                "description": "We are building an analytics SaaS and need a senior full-stack engineer to architect the backend API (FastAPI, PostgreSQL, Redis) and integrate with our React frontend. Must have experience with async Python and data visualization.",
+                "url": "https://www.upwork.com/jobs/mock-001",
+                "budget_type": "fixed", "budget_min": 4500.0, "budget_max": 6000.0,
+                "hourly_rate_min": None, "hourly_rate_max": None,
+                "required_skills": ["Python", "FastAPI", "React", "PostgreSQL", "Redis"],
+                "experience_level": "Expert", "project_length": "1 to 3 months",
+                "proposal_count": 8, "posted_at": "2026-05-29T08:00:00+00:00",
+                "is_featured": False, "payment_verified": True,
+                "client_country": "United States", "client_total_spent": 52000, "client_hire_rate": 82.0, "client_total_hires": 14,
+            },
+            {
+                "upwork_job_id": "mock_002",
+                "title": "Python backend engineer for fintech startup — long term",
+                "description": "Series A fintech startup looking for a Python engineer to own our transaction processing service. You'll work with Celery, Kafka, and PostgreSQL. We value clean code and strong test coverage.",
+                "url": "https://www.upwork.com/jobs/mock-002",
+                "budget_type": "hourly", "budget_min": None, "budget_max": None,
+                "hourly_rate_min": 65.0, "hourly_rate_max": 95.0,
+                "required_skills": ["Python", "Celery", "PostgreSQL", "Kafka", "Docker"],
+                "experience_level": "Senior", "project_length": "More than 6 months",
+                "proposal_count": 4, "posted_at": "2026-05-29T07:30:00+00:00",
+                "is_featured": True, "payment_verified": True,
+                "client_country": "United Kingdom", "client_total_spent": 120000, "client_hire_rate": 91.0, "client_total_hires": 23,
+            },
+            {
+                "upwork_job_id": "mock_003",
+                "title": "Next.js 15 + TypeScript frontend for B2B platform",
+                "description": "We need an experienced Next.js developer to build a complex B2B dashboard. Features include real-time charts (Recharts), role-based access, and a design system using Radix UI + Tailwind.",
+                "url": "https://www.upwork.com/jobs/mock-003",
+                "budget_type": "fixed", "budget_min": 3200.0, "budget_max": 4800.0,
+                "hourly_rate_min": None, "hourly_rate_max": None,
+                "required_skills": ["Next.js", "TypeScript", "Tailwind CSS", "Radix UI", "Recharts"],
+                "experience_level": "Senior", "project_length": "1 to 3 months",
+                "proposal_count": 12, "posted_at": "2026-05-29T06:00:00+00:00",
+                "is_featured": False, "payment_verified": True,
+                "client_country": "Germany", "client_total_spent": 38000, "client_hire_rate": 78.0, "client_total_hires": 9,
+            },
+            {
+                "upwork_job_id": "mock_004",
+                "title": "Machine learning engineer — NLP pipeline for document classification",
+                "description": "Building an automated document classification system using transformer models (HuggingFace). Need experience with fine-tuning BERT/RoBERTa, deploying models as REST APIs, and working with large document corpora.",
+                "url": "https://www.upwork.com/jobs/mock-004",
+                "budget_type": "fixed", "budget_min": 8000.0, "budget_max": 12000.0,
+                "hourly_rate_min": None, "hourly_rate_max": None,
+                "required_skills": ["Python", "HuggingFace", "NLP", "PyTorch", "FastAPI"],
+                "experience_level": "Expert", "project_length": "3 to 6 months",
+                "proposal_count": 3, "posted_at": "2026-05-29T05:30:00+00:00",
+                "is_featured": False, "payment_verified": True,
+                "client_country": "Canada", "client_total_spent": 89000, "client_hire_rate": 88.0, "client_total_hires": 19,
+            },
+            {
+                "upwork_job_id": "mock_005",
+                "title": "Scraping & data pipeline — real estate market data",
+                "description": "Need a Python developer to build a scraping system for real estate listings across 5 sites, normalize the data, and load into a PostgreSQL warehouse. Must handle rate limiting, proxies, and schedule via Celery Beat.",
+                "url": "https://www.upwork.com/jobs/mock-005",
+                "budget_type": "fixed", "budget_min": 2800.0, "budget_max": 3500.0,
+                "hourly_rate_min": None, "hourly_rate_max": None,
+                "required_skills": ["Python", "BeautifulSoup", "Celery", "PostgreSQL", "Scrapy"],
+                "experience_level": "Intermediate", "project_length": "1 to 3 months",
+                "proposal_count": 18, "posted_at": "2026-05-28T22:00:00+00:00",
+                "is_featured": False, "payment_verified": True,
+                "client_country": "Australia", "client_total_spent": 15000, "client_hire_rate": 71.0, "client_total_hires": 6,
+            },
+            {
+                "upwork_job_id": "mock_006",
+                "title": "Senior React developer — complex state management & performance",
+                "description": "Our React app has severe performance issues due to unnecessary re-renders and poor state architecture. We need an expert to audit, refactor with Zustand, implement code-splitting, and document the patterns.",
+                "url": "https://www.upwork.com/jobs/mock-006",
+                "budget_type": "hourly", "budget_min": None, "budget_max": None,
+                "hourly_rate_min": 75.0, "hourly_rate_max": 110.0,
+                "required_skills": ["React", "TypeScript", "Zustand", "Webpack", "Performance"],
+                "experience_level": "Expert", "project_length": "Less than 1 month",
+                "proposal_count": 6, "posted_at": "2026-05-29T04:00:00+00:00",
+                "is_featured": False, "payment_verified": True,
+                "client_country": "Netherlands", "client_total_spent": 67000, "client_hire_rate": 85.0, "client_total_hires": 17,
+            },
+            {
+                "upwork_job_id": "mock_007",
+                "title": "Backend API architect — microservices migration",
+                "description": "We are splitting a Django monolith into microservices using FastAPI and Docker Compose. Looking for an architect to design the service boundaries, implement inter-service communication (gRPC + REST), and set up observability.",
+                "url": "https://www.upwork.com/jobs/mock-007",
+                "budget_type": "hourly", "budget_min": None, "budget_max": None,
+                "hourly_rate_min": 90.0, "hourly_rate_max": 140.0,
+                "required_skills": ["FastAPI", "Docker", "gRPC", "PostgreSQL", "Prometheus"],
+                "experience_level": "Expert", "project_length": "3 to 6 months",
+                "proposal_count": 2, "posted_at": "2026-05-29T03:00:00+00:00",
+                "is_featured": True, "payment_verified": True,
+                "client_country": "United States", "client_total_spent": 240000, "client_hire_rate": 94.0, "client_total_hires": 41,
+            },
+            {
+                "upwork_job_id": "mock_008",
+                "title": "TypeScript SDK development for developer API",
+                "description": "We are building a TypeScript SDK for our REST API. Need a developer with deep TS expertise (generics, conditional types, declaration files) to write the SDK, auto-generated types from OpenAPI spec, and comprehensive tests with Vitest.",
+                "url": "https://www.upwork.com/jobs/mock-008",
+                "budget_type": "fixed", "budget_min": 3800.0, "budget_max": 5200.0,
+                "hourly_rate_min": None, "hourly_rate_max": None,
+                "required_skills": ["TypeScript", "OpenAPI", "Vitest", "Node.js", "REST API"],
+                "experience_level": "Senior", "project_length": "1 to 3 months",
+                "proposal_count": 7, "posted_at": "2026-05-28T20:00:00+00:00",
+                "is_featured": False, "payment_verified": True,
+                "client_country": "Sweden", "client_total_spent": 28000, "client_hire_rate": 80.0, "client_total_hires": 8,
+            },
+            {
+                "upwork_job_id": "mock_009",
+                "title": "Full-stack developer — MVP SaaS app (2 month deadline)",
+                "description": "Need a full-stack developer to build an MVP for a project management SaaS. Stack: FastAPI backend, Next.js frontend, PostgreSQL, hosted on Railway. We have Figma designs ready. Strong communicator required.",
+                "url": "https://www.upwork.com/jobs/mock-009",
+                "budget_type": "fixed", "budget_min": 6000.0, "budget_max": 9000.0,
+                "hourly_rate_min": None, "hourly_rate_max": None,
+                "required_skills": ["FastAPI", "Next.js", "PostgreSQL", "Figma", "Railway"],
+                "experience_level": "Senior", "project_length": "1 to 3 months",
+                "proposal_count": 14, "posted_at": "2026-05-28T18:00:00+00:00",
+                "is_featured": False, "payment_verified": True,
+                "client_country": "Singapore", "client_total_spent": 9500, "client_hire_rate": 69.0, "client_total_hires": 4,
+            },
+            {
+                "upwork_job_id": "mock_010",
+                "title": "Django → FastAPI migration + async refactor",
+                "description": "We have a large Django 3.2 app that needs to be migrated to FastAPI with full async support. Need someone who has done this migration before. SQLAlchemy 2.0 async ORM, Alembic migrations, Pydantic v2 schemas.",
+                "url": "https://www.upwork.com/jobs/mock-010",
+                "budget_type": "hourly", "budget_min": None, "budget_max": None,
+                "hourly_rate_min": 70.0, "hourly_rate_max": 100.0,
+                "required_skills": ["Python", "FastAPI", "SQLAlchemy", "Alembic", "Django"],
+                "experience_level": "Expert", "project_length": "3 to 6 months",
+                "proposal_count": 9, "posted_at": "2026-05-28T16:00:00+00:00",
+                "is_featured": False, "payment_verified": True,
+                "client_country": "United States", "client_total_spent": 44000, "client_hire_rate": 77.0, "client_total_hires": 11,
+            },
+            {
+                "upwork_job_id": "mock_011",
+                "title": "Node.js backend — real-time multiplayer game API",
+                "description": "Building a browser-based multiplayer game. Need a Node.js developer experienced with Socket.io, Redis pub/sub for game state synchronisation, and low-latency REST endpoints. 10k concurrent users target.",
+                "url": "https://www.upwork.com/jobs/mock-011",
+                "budget_type": "fixed", "budget_min": 5500.0, "budget_max": 8000.0,
+                "hourly_rate_min": None, "hourly_rate_max": None,
+                "required_skills": ["Node.js", "Socket.io", "Redis", "TypeScript", "AWS"],
+                "experience_level": "Senior", "project_length": "3 to 6 months",
+                "proposal_count": 11, "posted_at": "2026-05-28T14:00:00+00:00",
+                "is_featured": False, "payment_verified": True,
+                "client_country": "Japan", "client_total_spent": 31000, "client_hire_rate": 73.0, "client_total_hires": 7,
+            },
+            {
+                "upwork_job_id": "mock_012",
+                "title": "Data engineer — dbt + BigQuery pipeline for e-commerce analytics",
+                "description": "We run a mid-size e-commerce store and need a data engineer to build our analytics layer. dbt models on BigQuery, Airflow orchestration, Metabase dashboards, and documentation. Ongoing role.",
+                "url": "https://www.upwork.com/jobs/mock-012",
+                "budget_type": "hourly", "budget_min": None, "budget_max": None,
+                "hourly_rate_min": 60.0, "hourly_rate_max": 85.0,
+                "required_skills": ["Python", "dbt", "BigQuery", "Airflow", "SQL"],
+                "experience_level": "Senior", "project_length": "More than 6 months",
+                "proposal_count": 5, "posted_at": "2026-05-28T12:00:00+00:00",
+                "is_featured": False, "payment_verified": True,
+                "client_country": "Canada", "client_total_spent": 72000, "client_hire_rate": 87.0, "client_total_hires": 16,
+            },
+            {
+                "upwork_job_id": "mock_013",
+                "title": "AWS infrastructure — Terraform + ECS deployment automation",
+                "description": "Seeking a DevOps engineer to set up our AWS infrastructure with Terraform: ECS Fargate, RDS, ElastiCache, CloudFront, and CI/CD via GitHub Actions. Must follow least-privilege IAM and have production experience.",
+                "url": "https://www.upwork.com/jobs/mock-013",
+                "budget_type": "fixed", "budget_min": 4200.0, "budget_max": 6500.0,
+                "hourly_rate_min": None, "hourly_rate_max": None,
+                "required_skills": ["AWS", "Terraform", "Docker", "GitHub Actions", "ECS"],
+                "experience_level": "Expert", "project_length": "Less than 1 month",
+                "proposal_count": 16, "posted_at": "2026-05-28T10:00:00+00:00",
+                "is_featured": False, "payment_verified": True,
+                "client_country": "Ireland", "client_total_spent": 55000, "client_hire_rate": 84.0, "client_total_hires": 13,
+            },
+            {
+                "upwork_job_id": "mock_014",
+                "title": "Claude API integration — AI writing assistant for legal documents",
+                "description": "Building an AI writing assistant using Claude claude-sonnet-4-6. Need a Python developer to integrate the Anthropic SDK, implement streaming responses, build the FastAPI wrapper, and handle prompt engineering for legal document review.",
+                "url": "https://www.upwork.com/jobs/mock-014",
+                "budget_type": "fixed", "budget_min": 3500.0, "budget_max": 5000.0,
+                "hourly_rate_min": None, "hourly_rate_max": None,
+                "required_skills": ["Python", "FastAPI", "Anthropic API", "Prompt Engineering", "PostgreSQL"],
+                "experience_level": "Senior", "project_length": "1 to 3 months",
+                "proposal_count": 6, "posted_at": "2026-05-28T09:00:00+00:00",
+                "is_featured": False, "payment_verified": True,
+                "client_country": "United States", "client_total_spent": 19000, "client_hire_rate": 76.0, "client_total_hires": 5,
+            },
+            {
+                "upwork_job_id": "mock_015",
+                "title": "React Native app — fitness tracking with wearable BLE integration",
+                "description": "Consumer fitness app using React Native + Expo. Requires BLE (Bluetooth Low Energy) integration with heart rate monitors, local SQLite storage, background tracking, and a clean UI. iOS + Android.",
+                "url": "https://www.upwork.com/jobs/mock-015",
+                "budget_type": "fixed", "budget_min": 7000.0, "budget_max": 11000.0,
+                "hourly_rate_min": None, "hourly_rate_max": None,
+                "required_skills": ["React Native", "Expo", "TypeScript", "BLE", "SQLite"],
+                "experience_level": "Senior", "project_length": "3 to 6 months",
+                "proposal_count": 21, "posted_at": "2026-05-28T07:00:00+00:00",
+                "is_featured": False, "payment_verified": True,
+                "client_country": "Australia", "client_total_spent": 48000, "client_hire_rate": 79.0, "client_total_hires": 10,
+            },
+            {
+                "upwork_job_id": "mock_016",
+                "title": "Postgres performance tuning — 50M row OLTP database",
+                "description": "Our PostgreSQL database is degrading under load. Need an expert to analyse slow query logs, add/fix indexes, rewrite bad queries, tune autovacuum, and implement connection pooling with pgBouncer. Read replica setup preferred.",
+                "url": "https://www.upwork.com/jobs/mock-016",
+                "budget_type": "fixed", "budget_min": 2500.0, "budget_max": 4000.0,
+                "hourly_rate_min": None, "hourly_rate_max": None,
+                "required_skills": ["PostgreSQL", "pgBouncer", "SQL", "Query Optimisation", "Linux"],
+                "experience_level": "Expert", "project_length": "Less than 1 month",
+                "proposal_count": 7, "posted_at": "2026-05-28T06:00:00+00:00",
+                "is_featured": False, "payment_verified": True,
+                "client_country": "France", "client_total_spent": 33000, "client_hire_rate": 83.0, "client_total_hires": 9,
+            },
+            {
+                "upwork_job_id": "mock_017",
+                "title": "Stripe billing integration — SaaS subscription with usage-based pricing",
+                "description": "We need to integrate Stripe Billing into our FastAPI SaaS: subscription plans, metered usage billing, webhook handling, customer portal, and proration. Must have production Stripe experience.",
+                "url": "https://www.upwork.com/jobs/mock-017",
+                "budget_type": "fixed", "budget_min": 2200.0, "budget_max": 3500.0,
+                "hourly_rate_min": None, "hourly_rate_max": None,
+                "required_skills": ["Python", "Stripe", "FastAPI", "PostgreSQL", "Webhooks"],
+                "experience_level": "Senior", "project_length": "Less than 1 month",
+                "proposal_count": 9, "posted_at": "2026-05-28T05:00:00+00:00",
+                "is_featured": False, "payment_verified": True,
+                "client_country": "United States", "client_total_spent": 26000, "client_hire_rate": 74.0, "client_total_hires": 7,
+            },
+            {
+                "upwork_job_id": "mock_018",
+                "title": "Python automation scripts — document processing & OCR pipeline",
+                "description": "We process hundreds of PDFs daily. Need scripts to extract structured data using PyMuPDF + Tesseract OCR, classify document types, validate extracted fields, and export to a CSV/JSON pipeline. 95%+ accuracy required.",
+                "url": "https://www.upwork.com/jobs/mock-018",
+                "budget_type": "fixed", "budget_min": 1800.0, "budget_max": 2800.0,
+                "hourly_rate_min": None, "hourly_rate_max": None,
+                "required_skills": ["Python", "PyMuPDF", "Tesseract", "OCR", "Pandas"],
+                "experience_level": "Intermediate", "project_length": "Less than 1 month",
+                "proposal_count": 24, "posted_at": "2026-05-27T22:00:00+00:00",
+                "is_featured": False, "payment_verified": True,
+                "client_country": "Israel", "client_total_spent": 11000, "client_hire_rate": 68.0, "client_total_hires": 4,
+            },
+            {
+                "upwork_job_id": "mock_019",
+                "title": "Svelte/SvelteKit frontend — dashboard for IoT sensor data",
+                "description": "We collect telemetry from 500+ IoT sensors and need a SvelteKit dashboard to visualise real-time and historical data. D3.js charts, WebSocket live updates, dark theme, and responsive. Backend API already built.",
+                "url": "https://www.upwork.com/jobs/mock-019",
+                "budget_type": "hourly", "budget_min": None, "budget_max": None,
+                "hourly_rate_min": 55.0, "hourly_rate_max": 80.0,
+                "required_skills": ["SvelteKit", "TypeScript", "D3.js", "WebSockets", "Tailwind CSS"],
+                "experience_level": "Senior", "project_length": "1 to 3 months",
+                "proposal_count": 13, "posted_at": "2026-05-27T20:00:00+00:00",
+                "is_featured": False, "payment_verified": True,
+                "client_country": "Denmark", "client_total_spent": 22000, "client_hire_rate": 81.0, "client_total_hires": 6,
+            },
+            {
+                "upwork_job_id": "mock_020",
+                "title": "LLM fine-tuning engineer — domain-specific Q&A chatbot",
+                "description": "We want to fine-tune a small LLM (Mistral 7B or LLaMA 3.1 8B) on proprietary documentation for a customer support chatbot. Need experience with LoRA/QLoRA, PEFT, evaluation metrics (ROUGE, BERTScore), and deployment on Modal.",
+                "url": "https://www.upwork.com/jobs/mock-020",
+                "budget_type": "fixed", "budget_min": 5000.0, "budget_max": 8000.0,
+                "hourly_rate_min": None, "hourly_rate_max": None,
+                "required_skills": ["Python", "PyTorch", "HuggingFace", "LLM Fine-tuning", "LoRA"],
+                "experience_level": "Expert", "project_length": "1 to 3 months",
+                "proposal_count": 4, "posted_at": "2026-05-27T18:00:00+00:00",
+                "is_featured": False, "payment_verified": True,
+                "client_country": "Switzerland", "client_total_spent": 95000, "client_hire_rate": 90.0, "client_total_hires": 22,
+            },
         ]
 
 
