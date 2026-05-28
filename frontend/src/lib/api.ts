@@ -66,6 +66,8 @@ export const auth = {
     apiClient.post("/auth/forgot-password", { email }),
   resetPassword: (token: string, new_password: string) =>
     apiClient.post("/auth/reset-password", { token, new_password }),
+  verifyEmail: (token: string) =>
+    apiClient.get(`/auth/verify?token=${encodeURIComponent(token)}`),
 };
 
 export const cv = {

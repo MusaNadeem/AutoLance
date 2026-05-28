@@ -38,23 +38,57 @@ class RefreshRequest(BaseModel):
 
 @router.post("/register", response_model=TokenResponse, status_code=201)
 async def register(body: RegisterRequest, db: AsyncSession = Depends(get_db)):
-    """Register a new user account."""
+    """Register a new user account and send a verification email."""
     existing = await db.execute(select(User).where(User.email == body.email))
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Email already registered")
+
+    import uuid as _uuid
+    verification_token = _uuid.uuid4().hex
 
     user = User(
         email=body.email,
         password_hash=hash_password(body.password),
         full_name=body.full_name,
+        verification_token=verification_token,
     )
     db.add(user)
     await db.flush()
+
+    # Best-effort verification email
+    try:
+        from app.services.notification import notification_service
+        from app.config import settings as app_settings
+        frontend_url = getattr(app_settings, "NEXT_PUBLIC_API_URL", "http://localhost:3000").replace(":8000", ":3000")
+        await notification_service.send_transactional_email(
+            to_email=user.email,
+            to_name=user.full_name or "there",
+            subject="Verify your AutoLance email",
+            html_body=(
+                f"<p>Welcome to AutoLance, {user.full_name or 'there'}!</p>"
+                f"<p>Click the link below to verify your email address.</p>"
+                f"<p><a href='{frontend_url}/verify?token={verification_token}'>Verify Email</a></p>"
+            ),
+        )
+    except Exception:
+        pass
 
     return TokenResponse(
         access_token=create_access_token(str(user.id), user.email),
         refresh_token=create_refresh_token(str(user.id)),
     )
+
+
+@router.get("/verify")
+async def verify_email(token: str, db: AsyncSession = Depends(get_db)):
+    """Verify email address via token from the verification link."""
+    result = await db.execute(select(User).where(User.verification_token == token))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=400, detail="Invalid verification token")
+    user.is_verified = True
+    user.verification_token = None
+    return {"detail": "Email verified successfully"}
 
 
 @router.post("/login", response_model=TokenResponse)
