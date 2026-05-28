@@ -47,12 +47,9 @@ async def _async_scrape(task):
         await db.commit()
 
         try:
-            # Trigger Bright Data collection
-            snapshot_id = await bright_data.trigger_dataset_collection()
-            logger.info(f"Snapshot triggered: {snapshot_id}")
-
-            # Wait for results
-            raw_jobs = await bright_data.wait_for_snapshot(snapshot_id)
+            # Scrape via Bright Data Unlocker API + Upwork GraphQL (sync, run in executor)
+            loop = asyncio.get_event_loop()
+            raw_jobs = await loop.run_in_executor(None, bright_data.scrape_jobs)
             logger.info(f"Got {len(raw_jobs)} raw jobs from Bright Data")
 
             # Ingest jobs
@@ -104,8 +101,11 @@ async def _async_manual_scrape(urls):
         await db.commit()
 
         try:
-            snapshot_id = await bright_data.trigger_dataset_collection(urls=urls)
-            raw_jobs = await bright_data.wait_for_snapshot(snapshot_id)
+            # Scrape via Bright Data Unlocker API + Upwork GraphQL
+            loop = asyncio.get_event_loop()
+            raw_jobs = await loop.run_in_executor(
+                None, lambda: bright_data.scrape_jobs(urls)
+            )
             stats = await pipeline.ingest_batch(db, raw_jobs, str(run.id))
 
             # ── On success ───────────────────────────────────────────────────

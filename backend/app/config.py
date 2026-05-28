@@ -47,7 +47,7 @@ class Settings(BaseSettings):
 
     # ── Claude AI ────────────────────────────────────────
     ANTHROPIC_API_KEY: str
-    CLAUDE_MODEL: str = "claude-sonnet-4-5"
+    CLAUDE_MODEL: str = "claude-sonnet-4-6"
     CLAUDE_MAX_TOKENS: int = 4096
     CLAUDE_TEMPERATURE: float = 0.1
 
