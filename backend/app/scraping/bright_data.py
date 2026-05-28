@@ -79,6 +79,151 @@ class BrightDataClient:
         except Exception:
             pass
 
+    # ── GraphQL scraping (preferred — faster + more stable than NUXT parser) ─
+
+    # GraphQL query using field names confirmed to exist on Upwork's API.
+    # `filter` argument was found invalid; `searchExpression` is the correct one.
+    # If this query starts returning errors, run backend/scripts/test_graphql.py
+    # to re-discover field names.
+    _GQL_QUERY = """
+    query JobSearch($query: String!, $count: Int) {
+      marketplaceJobPostings(
+        searchExpression: { query: $query }
+        pagination: { first: $count }
+      ) {
+        edges {
+          node {
+            id
+            title
+            description
+            ciphertext
+            premium
+            contractorTier
+            jobType
+            totalApplicants
+            postedDateTime
+            hourlyBudgetMin
+            hourlyBudgetMax
+            budget { amount currencyCode }
+            skills { prettyName }
+            duration { label }
+            client {
+              totalPostedJobs totalHires feedbackScore
+              location { country }
+              paymentVerification
+              totalSpent { amount }
+            }
+          }
+        }
+      }
+    }
+    """
+
+    def _get_visitor_token(self) -> Optional[str]:
+        """
+        Fetch Upwork homepage via Bright Data Unlocker API to get visitor_gql_token.
+        This token has elevated scope (Bright Data bypasses Cloudflare bot detection)
+        which is required to query the GraphQL API.
+        """
+        resp = requests.post(
+            f"{self.base_url}/request",
+            headers={"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"},
+            json={"zone": self.unlocker_zone, "url": "https://www.upwork.com", "format": "json"},
+            timeout=90,
+        )
+        resp.raise_for_status()
+        outer = resp.json()
+        raw = outer.get("headers", {}).get("set-cookie", "")
+        if isinstance(raw, list):
+            raw = ",".join(raw)
+        cookies: dict = {}
+        for chunk in re.split(r",\s*(?=[A-Za-z_]+=)", raw):
+            m = re.match(r"([A-Za-z_][A-Za-z0-9_\-]*)=([^;,\s]+)", chunk.strip())
+            if m:
+                cookies[m.group(1)] = m.group(2)
+        return cookies.get("visitor_gql_token")
+
+    def _graphql_query(self, token: str, keyword: str, count: int = 20) -> list[dict]:
+        """
+        Query Upwork's GraphQL endpoint via curl_cffi (Chrome TLS impersonation).
+        The visitor_gql_token obtained from Bright Data has the required scope.
+        Falls back gracefully if curl_cffi is not available.
+        """
+        try:
+            from curl_cffi import requests as cffi_requests
+        except ImportError:
+            raise RuntimeError("curl_cffi not installed — GraphQL path unavailable")
+
+        cookie_str = f"visitor_gql_token={token}"
+        r = cffi_requests.post(
+            "https://www.upwork.com/api/graphql/v1",
+            impersonate="chrome131",
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/json",
+                "Cookie": cookie_str,
+                "Origin": "https://www.upwork.com",
+            },
+            json={"query": self._GQL_QUERY, "variables": {"query": keyword, "count": count}},
+            timeout=30,
+        )
+        data = r.json()
+
+        if data.get("errors"):
+            first_err = data["errors"][0].get("message", "")
+            raise RuntimeError(f"GraphQL error: {first_err[:120]}")
+
+        edges = (
+            data.get("data", {})
+                .get("marketplaceJobPostings", {})
+                .get("edges", [])
+        )
+        return [e["node"] for e in edges if e.get("node")]
+
+    def _map_graphql_jobs(self, nodes: list[dict]) -> list[dict]:
+        """Convert GraphQL job nodes to pipeline format."""
+        jobs = []
+        for node in nodes:
+            cipher    = (node.get("ciphertext") or "").lstrip("~").lstrip("0")
+            job_type  = (node.get("jobType") or "").lower()
+            budget_type = "fixed" if "fixed" in job_type else "hourly"
+            budget    = node.get("budget") or {}
+            budget_amt = budget.get("amount")
+            skills    = [s["prettyName"] for s in (node.get("skills") or []) if s.get("prettyName")]
+            client_raw = node.get("client") or {}
+
+            posted_at = None
+            raw_date  = node.get("postedDateTime")
+            if raw_date:
+                try:
+                    posted_at = datetime.fromisoformat(str(raw_date).replace("Z", "+00:00")).isoformat()
+                except Exception:
+                    pass
+
+            jobs.append({
+                "upwork_job_id":   node.get("id", ""),
+                "title":           node.get("title", ""),
+                "description":     (node.get("description") or "")[:2000],
+                "url":             f"https://www.upwork.com/jobs/~0{cipher}" if cipher else "",
+                "budget_type":     budget_type,
+                "budget_min":      float(budget_amt) if budget_amt and budget_type == "fixed" else None,
+                "budget_max":      float(budget_amt) if budget_amt and budget_type == "fixed" else None,
+                "hourly_rate_min": node.get("hourlyBudgetMin"),
+                "hourly_rate_max": node.get("hourlyBudgetMax"),
+                "required_skills": list(dict.fromkeys(skills)),
+                "experience_level":node.get("contractorTier"),
+                "project_length":  (node.get("duration") or {}).get("label"),
+                "proposal_count":  node.get("totalApplicants", 0) or 0,
+                "posted_at":       posted_at,
+                "is_featured":     node.get("premium", False),
+                "client_country":  (client_raw.get("location") or {}).get("country"),
+                "payment_verified":client_raw.get("paymentVerification") == "VERIFIED",
+                "client_total_spent": (client_raw.get("totalSpent") or {}).get("amount"),
+                "client_hire_rate":   client_raw.get("feedbackScore"),
+                "client_total_hires": client_raw.get("totalHires"),
+            })
+        return [j for j in jobs if j["upwork_job_id"]]
+
     # ── Unlocker API fetch ─────────────────────────────────────────────────
 
     @retry(stop=stop_after_attempt(2), wait=wait_exponential(multiplier=1, min=5, max=20))
@@ -405,12 +550,30 @@ class BrightDataClient:
             for kw in keywords if kw.strip()
         ]
 
-    def _scrape_single_url(self, url: str) -> tuple[str, list[dict]]:
+    def _scrape_single_url(self, url: str, gql_token: Optional[str] = None) -> tuple[str, list[dict]]:
         """
         Fetch and parse one search URL. Returns (keyword, jobs).
+        Strategy:
+          1. If gql_token is provided, try GraphQL first (faster, more stable).
+          2. Fall back to NUXT HTML parsing via Unlocker API (slower, fragile).
         Raises on failure so the caller can log and continue.
         """
-        keyword = url.split("q=")[1].split("&")[0] if "q=" in url else url
+        import urllib.parse as _up
+        keyword = _up.unquote_plus(url.split("q=")[1].split("&")[0]) if "q=" in url else url
+
+        # Try GraphQL path (fast: ~5s vs 90-300s for NUXT)
+        if gql_token:
+            try:
+                nodes = self._graphql_query(gql_token, keyword)
+                jobs  = self._map_graphql_jobs(nodes)
+                if jobs:
+                    logger.info("Scraped via GraphQL", keyword=keyword, count=len(jobs))
+                    return keyword, jobs
+                logger.warning("GraphQL returned 0 jobs — falling back to NUXT", keyword=keyword)
+            except Exception as e:
+                logger.warning("GraphQL failed — falling back to NUXT", keyword=keyword, error=str(e)[:120])
+
+        # NUXT HTML fallback
         html = self._fetch_search_page(url, timeout=120)
         jobs = self._parse_nuxt_html(html)
         return keyword, jobs
@@ -432,12 +595,24 @@ class BrightDataClient:
             return self._get_mock_jobs()
 
         if keywords:
-            # Profile-derived: cap at 3 — niche + top 2 skills are the most
-            # targeted. Fetching all 6 keywords multiplies latency for minimal gain.
             targets = self._keywords_to_urls(keywords[:3])
         else:
             targets = UPWORK_SEARCH_URLS
         logger.info("Starting scrape", keywords=keywords or "defaults", urls=len(targets))
+
+        # Try to get a visitor_gql_token once for all parallel workers.
+        # The token obtained via Bright Data Unlocker has elevated scope —
+        # it allows GraphQL queries that plain visitor tokens can't make.
+        # Failure is non-fatal; workers fall back to NUXT parsing.
+        gql_token: Optional[str] = None
+        try:
+            gql_token = self._get_visitor_token()
+            if gql_token:
+                logger.info("visitor_gql_token obtained — will try GraphQL first")
+            else:
+                logger.info("No token obtained — using NUXT parser only")
+        except Exception as e:
+            logger.warning("Token fetch failed", error=str(e)[:100])
 
         from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -446,9 +621,8 @@ class BrightDataClient:
         successes = 0
         failures  = 0
 
-        # Fetch up to 3 URLs in parallel; each has its own 120s timeout + 1 retry
         with ThreadPoolExecutor(max_workers=3) as pool:
-            futures = {pool.submit(self._scrape_single_url, url): url for url in targets}
+            futures = {pool.submit(self._scrape_single_url, url, gql_token): url for url in targets}
             for future in as_completed(futures, timeout=300):
                 url = futures[future]
                 keyword = url.split("q=")[1].split("&")[0] if "q=" in url else url

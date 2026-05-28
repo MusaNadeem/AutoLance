@@ -136,61 +136,58 @@ async def scrape_history(
 @scrape_router.get("/stream")
 async def scrape_stream(
     request: Request,
-    token: str,  # passed as query param since EventSource doesn't support headers
-    db: AsyncSession = Depends(get_db),
+    token: str,  # EventSource can't set headers — token passed as query param
 ):
     """
     Server-Sent Events endpoint — streams scrape status changes.
-    The frontend connects with ?token=<jwt> since EventSource can't set headers.
-    Sends an event every 5s or immediately on status change.
+    Opens one DB connection per client for the lifetime of the stream;
+    reuses it on every poll instead of opening a new connection each cycle.
     """
     from app.middleware.auth import decode_token
-    from uuid import UUID
 
     payload = decode_token(token)
     if not payload or payload.get("type") != "access":
         return StreamingResponse(iter([]), status_code=401)
 
     async def event_generator() -> AsyncGenerator[str, None]:
-        last_status: str | None = None
         last_run_id: str | None = None
+        last_status: str | None = None
 
-        while True:
-            if await request.is_disconnected():
-                break
+        # One long-lived session for the entire stream lifetime
+        from app.database import get_db_context
+        async with get_db_context() as stream_db:
+            while True:
+                if await request.is_disconnected():
+                    break
 
-            from app.database import get_db_context
-            async with get_db_context() as stream_db:
+                # expire_on_commit=False is set in the session factory, but we still
+                # need to expire cached attributes so we see fresh DB state each tick.
+                await stream_db.execute(select(1))  # keep-alive + forces expiry flush
+
                 run_result = await stream_db.execute(
                     select(ScrapingRun).order_by(desc(ScrapingRun.started_at)).limit(1)
                 )
+                # expire cached ORM objects so next read hits the DB
+                stream_db.expire_all()
+
                 run = run_result.scalar_one_or_none()
+                run_id   = str(run.id)   if run else None
+                status   = run.status    if run else "idle"
+                new_jobs = (run.jobs_new or 0) if run else 0
 
-            run_id  = str(run.id) if run else None
-            status  = run.status  if run else "idle"
-            new_jobs = (run.jobs_new or 0) if run else 0
+                last_run_id = run_id
+                last_status = status
 
-            changed = (status != last_status) or (run_id != last_run_id)
-            last_status = status
-            last_run_id = run_id
+                yield f"data: {json.dumps({'is_running': status == 'running', 'status': status, 'new_jobs': new_jobs, 'run_id': run_id})}\n\n"
 
-            payload_data = json.dumps({
-                "is_running": status == "running",
-                "status":     status,
-                "new_jobs":   new_jobs,
-                "run_id":     run_id,
-            })
-            yield f"data: {payload_data}\n\n"
-
-            await asyncio.sleep(5)
+                await asyncio.sleep(5)
 
     return StreamingResponse(
         event_generator(),
         media_type="text/event-stream",
         headers={
-            "Cache-Control":               "no-cache",
-            "X-Accel-Buffering":           "no",
-            "Access-Control-Allow-Origin": "*",
+            "Cache-Control":     "no-cache",
+            "X-Accel-Buffering": "no",
         },
     )
 

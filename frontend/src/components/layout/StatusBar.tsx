@@ -100,27 +100,27 @@ export function StatusBar() {
   const { is_running, last_run, next_run_at } = data;
 
   return (
-    <div className="flex items-center gap-3 px-4 py-2 bg-surface-900 border-b-2 border-border text-xs font-mono" style={{ borderLeft: '3px solid #a3e635' }}>
+    <div className="flex items-center gap-2 md:gap-3 px-4 py-2 bg-surface-900 border-b-2 border-border text-xs font-mono" style={{ borderLeft: '3px solid #a3e635' }}>
       {/* Status indicator */}
       <StatusDot status={is_running ? "running" : last_run?.status ?? "idle"} />
 
-      {/* Status text */}
-      <span className="text-slate-400 uppercase tracking-widest">
+      {/* Status text — hidden on very small screens */}
+      <span className="hidden sm:inline text-slate-400 uppercase tracking-widest">
         {is_running ? (
           <span className="text-neon-orange">Scraping now...</span>
         ) : last_run?.status === "failed" ? (
           <span className="text-neon-pink">
-            Last scrape failed · {(last_run.error_message || "Unknown error").slice(0, 60)}
+            Last scrape failed · {(last_run.error_message || "Unknown error").slice(0, 40)}
           </span>
         ) : last_run ? (
           <span className="text-slate-400">
-            Last scraped{" "}
+            <span className="hidden md:inline">Last scraped </span>
             <span className="text-white">{relativeTime(last_run.completed_at ?? last_run.started_at)}</span>
-            {" · "}
-            <span className="text-neon-lime">{last_run.jobs_new ?? 0} new jobs</span>
+            <span className="hidden md:inline">{" · "}</span>
+            <span className="text-neon-lime hidden md:inline">{last_run.jobs_new ?? 0} new jobs</span>
           </span>
         ) : (
-          <span className="text-slate-500">No scrapes yet</span>
+          <span className="text-slate-500 hidden md:inline">No scrapes yet</span>
         )}
       </span>
 

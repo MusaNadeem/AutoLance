@@ -118,7 +118,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <StatusBar />
 
         {/* Page content */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-8">
+        <main className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-6 lg:p-8">
           <motion.div
             key={pathname}
             initial={{ opacity: 0, y: 16 }}

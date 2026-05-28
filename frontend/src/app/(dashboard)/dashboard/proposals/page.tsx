@@ -177,14 +177,20 @@ export default function ProposalsPage() {
         </div>
       )}
 
-      {/* Kanban board */}
+      {/* Kanban board
+          - md+: horizontal scroll with fixed 256px columns
+          - mobile: vertical stack, empty columns hidden to save space  */}
       {!isLoading && !isEmpty && (
-        <div className="flex-1 overflow-x-auto">
-          <div className="flex gap-4 min-w-max pb-4">
+        <div className="flex-1 md:overflow-x-auto">
+          <div className="flex flex-col md:flex-row gap-3 md:gap-4 md:min-w-max pb-4">
             {COLUMNS.map((col) => {
               const colProposals = allProposals.filter((p) => p.status === col.id);
               return (
-                <div key={col.id} className={`w-64 rounded-2xl border ${col.color} flex flex-col`}>
+                <div
+                  key={col.id}
+                  className={`${colProposals.length === 0 ? "hidden md:flex" : "flex"} flex-col md:w-64 rounded-2xl border ${col.color}`}
+                >
+                  {/* Column header */}
                   <div className="p-3 border-b border-white/5">
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-semibold text-white">{col.label}</span>
@@ -194,6 +200,7 @@ export default function ProposalsPage() {
                     </div>
                   </div>
 
+                  {/* Cards */}
                   <div className="p-2 space-y-2 flex-1">
                     <AnimatePresence>
                       {colProposals.map((proposal) => (
@@ -210,9 +217,7 @@ export default function ProposalsPage() {
                           </p>
                           <div className="flex items-center justify-between mt-2">
                             <span className="text-sm font-semibold text-white">
-                              {proposal.bid_amount
-                                ? `$${proposal.bid_amount.toLocaleString()}`
-                                : "—"}
+                              {proposal.bid_amount ? `$${proposal.bid_amount.toLocaleString()}` : "—"}
                             </span>
                             <span className={`text-xs font-mono font-bold ${matchColors(proposal.match_score)}`}>
                               {proposal.match_score != null ? `${proposal.match_score}%` : "—"}

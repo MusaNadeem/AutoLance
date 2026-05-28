@@ -106,3 +106,13 @@ pnpm-debug.log*
 *.tmp
 *.temp
 .cache/
+
+# ───────────────────────────────────────────
+# Tools / Generated
+# ───────────────────────────────────────────
+# graphify knowledge graph outputs (generated, not source)
+graphify-out/
+# Claude session profile
+.openclaude-profile.json
+# Linux venv (backend uses linux_venv/, tracked only by name)
+backend/linux_venv/
