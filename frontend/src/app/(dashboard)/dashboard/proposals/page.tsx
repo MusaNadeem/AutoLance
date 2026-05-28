@@ -3,7 +3,7 @@
 import useSWR, { mutate } from "swr";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { DollarSign, Trophy, TrendingUp, ChevronDown, Loader2, FileText } from "lucide-react";
+import { DollarSign, Trophy, TrendingUp, ChevronDown, Loader2, FileText, Target, MessageSquare, Download } from "lucide-react";
 import { proposals } from "@/lib/api";
 
 const COLUMNS = [
@@ -39,7 +39,9 @@ interface Proposal {
 interface Analytics {
   total: number;
   sent: number;
+  replied: number;
   won: number;
+  lost: number;
   win_rate: number;
   response_rate: number;
   total_revenue: number;
@@ -86,8 +88,8 @@ export default function ProposalsPage() {
           <p className="text-slate-400 mt-1">Track every proposal from draft to close</p>
         </div>
 
-        {/* Analytics bar */}
-        <div className="flex items-center gap-3 text-sm">
+        {/* Stats + CSV export */}
+        <div className="flex items-center gap-3 text-sm flex-wrap">
           <div className="glass-card px-4 py-2 flex items-center gap-2">
             <Trophy size={14} className="text-emerald-400" />
             <span className="text-white font-semibold">{analytics?.win_rate ?? 0}%</span>
@@ -105,8 +107,51 @@ export default function ProposalsPage() {
             </span>
             <span className="text-slate-400">revenue</span>
           </div>
+          <a
+            href="/api/v1/proposals/export?format=csv"
+            download="proposals.csv"
+            className="flex items-center gap-1.5 px-3 py-2 border border-border text-slate-400 hover:text-neon-lime hover:border-neon-lime font-mono text-xs uppercase tracking-widest transition-colors"
+          >
+            <Download size={12} /> Export CSV
+          </a>
         </div>
       </div>
+
+      {/* Funnel chart — only show when there's data */}
+      {analytics && analytics.sent > 0 && (
+        <div className="glass-card p-4">
+          <p className="text-xs font-mono font-bold text-slate-500 uppercase tracking-widest mb-3">Pipeline Funnel</p>
+          <div className="flex items-end gap-2 h-16">
+            {[
+              { label: "Sent",      value: analytics.sent,     color: "bg-blue-500" },
+              { label: "Replied",   value: analytics.replied,  color: "bg-violet-500" },
+              { label: "Won",       value: analytics.won,      color: "bg-emerald-500" },
+              { label: "Lost",      value: analytics.lost,     color: "bg-red-500/60" },
+            ].map(({ label, value, color }) => {
+              const pct = analytics.sent > 0 ? Math.round((value / analytics.sent) * 100) : 0;
+              return (
+                <div key={label} className="flex flex-col items-center gap-1 flex-1">
+                  <span className="text-[10px] font-mono text-slate-400">{value}</span>
+                  <div className="w-full flex items-end justify-center">
+                    <div
+                      className={`w-full ${color} rounded-sm transition-all`}
+                      style={{ height: `${Math.max(4, pct)}px` }}
+                    />
+                  </div>
+                  <span className="text-[9px] font-mono text-slate-500 uppercase">{label}</span>
+                </div>
+              );
+            })}
+            <div className="flex flex-col items-center gap-1 flex-1">
+              <span className="text-[10px] font-mono text-neon-lime font-bold">{analytics.win_rate}%</span>
+              <div className="w-full flex items-end justify-center">
+                <div className="w-full bg-neon-lime/20 border border-neon-lime/40 rounded-sm" style={{ height: `${Math.max(4, analytics.win_rate)}px` }} />
+              </div>
+              <span className="text-[9px] font-mono text-neon-lime uppercase">Win %</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Empty state */}
       {isEmpty && (

@@ -4,8 +4,10 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from sqlalchemy import select, desc
 from app.database import get_db
 from app.models.user import User
+from app.models import ActivityLog
 from app.middleware.auth import get_current_user, hash_password, verify_password
 
 router = APIRouter(prefix="/settings", tags=["Settings"])
@@ -69,6 +71,30 @@ async def change_password(
 
     current_user.password_hash = hash_password(body.new_password)
     return {"detail": "Password updated"}
+
+
+@router.get("/activity")
+async def get_activity(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return the last 50 activity log entries for the current user."""
+    result = await db.execute(
+        select(ActivityLog)
+        .where(ActivityLog.user_id == current_user.id)
+        .order_by(desc(ActivityLog.created_at))
+        .limit(50)
+    )
+    logs = result.scalars().all()
+    return [
+        {
+            "id":          str(l.id),
+            "action":      l.action,
+            "entity_type": l.entity_type,
+            "created_at":  l.created_at.isoformat() if l.created_at else None,
+        }
+        for l in logs
+    ]
 
 
 @router.delete("/account", status_code=204)

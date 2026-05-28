@@ -93,6 +93,7 @@ class Proposal(Base):
     job_id = Column(UUID(as_uuid=True), ForeignKey("jobs.id"))
     cover_letter_id = Column(UUID(as_uuid=True), ForeignKey("cover_letters.id"))
     status = Column(String(50), default="drafted", index=True)
+    job_title_snapshot = Column(String(500))   # snapshot at apply time — survives job deactivation
     bid_amount = Column(Numeric(12, 2))
     bid_type = Column(String(50))
     sent_at = Column(DateTime(timezone=True))

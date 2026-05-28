@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { User, Key, Trash2, Save, Check, Loader2, AlertTriangle } from "lucide-react";
+import { User, Key, Trash2, Save, Check, Loader2, AlertTriangle, Clock } from "lucide-react";
 import useSWR from "swr";
 import { settings } from "@/lib/api";
 
@@ -10,6 +10,12 @@ export default function SettingsPage() {
   const { data: userData } = useSWR(
     "/settings",
     () => settings.get().then((r) => r.data),
+    { revalidateOnFocus: false }
+  );
+
+  const { data: activityLog } = useSWR<{ id: string; action: string; entity_type: string | null; created_at: string | null }[]>(
+    "/settings/activity",
+    () => settings.activity().then((r) => r.data),
     { revalidateOnFocus: false }
   );
 
@@ -190,6 +196,32 @@ export default function SettingsPage() {
           <span className="px-3 py-1 rounded-full bg-surface-5 text-slate-300 text-xs font-medium">Current</span>
         </div>
         <button className="btn-primary text-sm py-2.5 px-5">Upgrade to Pro →</button>
+      </motion.div>
+
+      {/* Activity Log */}
+      <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="glass-card p-6 space-y-4">
+        <h2 className="font-semibold text-white flex items-center gap-2">
+          <Clock size={16} className="text-slate-400" /> Activity Log
+        </h2>
+        {(!activityLog || activityLog.length === 0) ? (
+          <p className="text-slate-500 text-sm">No activity recorded yet.</p>
+        ) : (
+          <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+            {activityLog.map((log) => (
+              <div key={log.id} className="flex items-start justify-between gap-3 py-2 border-b border-surface-5 last:border-0">
+                <div>
+                  <p className="text-sm text-white font-medium">{log.action}</p>
+                  {log.entity_type && (
+                    <p className="text-xs text-slate-500 font-mono">{log.entity_type}</p>
+                  )}
+                </div>
+                <span className="text-xs text-slate-600 font-mono shrink-0">
+                  {log.created_at ? new Date(log.created_at).toLocaleDateString() : "—"}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
       </motion.div>
 
       {/* Danger Zone */}

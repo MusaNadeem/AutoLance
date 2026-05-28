@@ -6,6 +6,7 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, desc
 
+from datetime import datetime, timezone, timedelta
 from app.database import get_db
 from app.models.user import User
 from app.models import MatchScore, CoverLetter, Proposal, AlertConfig, AlertEvent
@@ -14,6 +15,30 @@ from app.models.profile import FreelancerProfile
 from app.middleware.auth import get_current_user
 from app.services.job_scorer import job_scorer_service
 from app.services.cover_letter_gen import cover_letter_service
+
+# ── Tier limits ───────────────────────────────────────────────────────────────
+TIER_LIMITS = {
+    "free":  {"cover_letters_per_day": 5,   "scores_per_day": 20},
+    "pro":   {"cover_letters_per_day": 999, "scores_per_day": 999},
+    "agency":{"cover_letters_per_day": 999, "scores_per_day": 999},
+}
+
+async def _check_cover_letter_limit(user: User, db: AsyncSession) -> None:
+    tier = user.subscription_tier or "free"
+    limit = TIER_LIMITS.get(tier, TIER_LIMITS["free"])["cover_letters_per_day"]
+    if limit >= 999:
+        return
+    since = datetime.now(timezone.utc) - timedelta(hours=24)
+    result = await db.execute(
+        select(func.count()).select_from(CoverLetter)
+        .where(CoverLetter.user_id == user.id, CoverLetter.created_at >= since)
+    )
+    count = result.scalar() or 0
+    if count >= limit:
+        raise HTTPException(
+            status_code=429,
+            detail=f"Free plan limit: {limit} cover letters per day. Upgrade to Pro for unlimited."
+        )
 
 # ────────────────────────────────────────────────────────────────
 # MATCHES ROUTER
@@ -123,6 +148,7 @@ async def generate_cover_letter(
     db: AsyncSession = Depends(get_db),
 ):
     """Generate a personalized cover letter for a job."""
+    await _check_cover_letter_limit(current_user, db)
     letter = await cover_letter_service.generate(
         db=db,
         user_id=current_user.id,
@@ -217,6 +243,13 @@ async def create_proposal(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    # Snapshot the job title so the Kanban card survives job deactivation/deletion
+    job_title_snapshot: str | None = None
+    job_res = await db.execute(select(Job).where(Job.id == uuid.UUID(body.job_id)))
+    j = job_res.scalar_one_or_none()
+    if j:
+        job_title_snapshot = j.title
+
     proposal = Proposal(
         user_id=current_user.id,
         job_id=uuid.UUID(body.job_id),
@@ -224,6 +257,7 @@ async def create_proposal(
         bid_amount=body.bid_amount,
         bid_type=body.bid_type,
         notes=body.notes,
+        job_title_snapshot=job_title_snapshot,
     )
     db.add(proposal)
     await db.flush()
@@ -255,7 +289,7 @@ async def list_proposals(
         {
             "id": str(p.id),
             "job_id": str(p.job_id),
-            "job_title": j.title if j else None,
+            "job_title": (j.title if j else None) or p.job_title_snapshot,
             "job_url": j.url if j else None,
             "status": p.status,
             "bid_amount": float(p.bid_amount) if p.bid_amount else None,
@@ -343,6 +377,46 @@ async def proposal_analytics(
         "total_revenue": total_value,
         "avg_project_value": round(total_value / won, 2) if won > 0 else 0,
     }
+
+
+@proposals_router.get("/export")
+async def export_proposals_csv(
+    format: str = "csv",
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Export all proposals as a CSV file."""
+    from fastapi.responses import StreamingResponse
+    import io, csv
+
+    result = await db.execute(
+        select(Proposal, Job)
+        .join(Job, Proposal.job_id == Job.id)
+        .where(Proposal.user_id == current_user.id)
+        .order_by(desc(Proposal.created_at))
+    )
+    rows = result.all()
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["Job Title", "Status", "Bid Amount", "Bid Type", "Sent At", "Outcome Value", "Created At"])
+    for p, j in rows:
+        writer.writerow([
+            (j.title if j else None) or p.job_title_snapshot or "",
+            p.status,
+            float(p.bid_amount) if p.bid_amount else "",
+            p.bid_type or "",
+            p.sent_at.isoformat() if p.sent_at else "",
+            float(p.outcome_value) if p.outcome_value else "",
+            p.created_at.isoformat() if p.created_at else "",
+        ])
+
+    output.seek(0)
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=proposals.csv"},
+    )
 
 
 # ────────────────────────────────────────────────────────────────

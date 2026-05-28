@@ -4,7 +4,7 @@ import { useRef, useEffect, useState } from "react";
 import useSWR, { mutate } from "swr";
 import { motion } from "framer-motion";
 import { Zap, AlertTriangle, CheckCircle, Clock, RefreshCw } from "lucide-react";
-import { scrape } from "@/lib/api";
+import { scrape, apiClient } from "@/lib/api";
 import type { ScrapeStatus } from "@/types";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -39,17 +39,44 @@ export function StatusBar() {
     "/scrape/status",
     fetcher,
     {
-      refreshInterval: 30_000,
+      refreshInterval: 60_000, // fallback poll every 60s (SSE handles faster updates)
       revalidateOnFocus: false,
       onSuccess(data) {
-        // Detect is_running transition: true → false → refresh job list
         if (prevRunning.current === true && !data.is_running) {
-          mutate("/jobs"); // auto-refresh job list SWR cache
+          mutate("/jobs");
         }
         prevRunning.current = data.is_running;
       },
     }
   );
+
+  // SSE connection for real-time status — supplements the SWR poll
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const token = localStorage.getItem("access_token");
+    if (!token) return;
+
+    const baseUrl = apiClient.defaults.baseURL ?? "http://localhost:8000/api/v1";
+    const es = new EventSource(`${baseUrl}/scrape/stream?token=${encodeURIComponent(token)}`);
+
+    es.onmessage = (e) => {
+      try {
+        const payload = JSON.parse(e.data) as { is_running: boolean; new_jobs: number };
+        const wasRunning = prevRunning.current;
+        prevRunning.current = payload.is_running;
+        // When scrape finishes, immediately refresh status + jobs
+        if (wasRunning && !payload.is_running) {
+          mutateStatus();
+          mutate("/jobs");
+        }
+      } catch {/* ignore parse errors */}
+    };
+
+    es.onerror = () => es.close(); // close on error; SWR poll takes over
+
+    return () => es.close();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleTrigger = async () => {
     if (triggeringRef.current || data?.is_running) return;

@@ -178,6 +178,7 @@ export const settings = {
   changePassword: (data: { current_password: string; new_password: string }) =>
                     apiClient.put("/settings/password", data),
   deleteAccount:  ()                                   => apiClient.delete("/settings/account"),
+  activity:       ()                                   => apiClient.get("/settings/activity"),
 };
 
 export const fetcher = (url: string) =>
