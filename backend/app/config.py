@@ -1,5 +1,5 @@
 """
-FreelanceRadar — Application Configuration
+AutoLance — Application Configuration
 Pydantic Settings v2 with full type validation and env loading
 """
 from functools import lru_cache
@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     )
 
     # ── App ─────────────────────────────────────────────
-    APP_NAME: str = "FreelanceRadar"
+    APP_NAME: str = "AutoLance"
     APP_VERSION: str = "1.0.0"
     DEBUG: bool = False
     ENVIRONMENT: str = "development"
@@ -69,10 +69,15 @@ class Settings(BaseSettings):
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
     JWT_REFRESH_TOKEN_EXPIRE_DAYS: int = 30
 
-    # ── SendGrid ─────────────────────────────────────────
+    # ── Notification ─────────────────────────────────────────────────────────────
+    SLACK_WEBHOOK_URL: Optional[str] = None
     SENDGRID_API_KEY: Optional[str] = None
-    SENDGRID_FROM_EMAIL: str = "alerts@freelanceradar.io"
-    SENDGRID_FROM_NAME: str = "FreelanceRadar"
+    SENDGRID_FROM_EMAIL: str = "noreply@autolance.io"
+    SENDGRID_FROM_NAME: str = "AutoLance Alerts"
+    GMAIL_CLIENT_ID: Optional[str] = None
+    GMAIL_CLIENT_SECRET: Optional[str] = None
+    GMAIL_REFRESH_TOKEN: Optional[str] = None
+    GMAIL_SENDER_EMAIL: Optional[str] = None
 
     # ── Slack ────────────────────────────────────────────
     SLACK_DEFAULT_WEBHOOK_URL: Optional[str] = None

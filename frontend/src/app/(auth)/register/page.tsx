@@ -13,8 +13,10 @@ const benefits = [
 ];
 
 import { apiClient } from "@/lib/api";
+import { useRouter } from "next/navigation";
 
 export default function RegisterPage() {
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState("");
   const [form, setForm]       = useState({ name: "", email: "", password: "" });
@@ -30,16 +32,8 @@ export default function RegisterPage() {
         password:  form.password,
         full_name: form.name,
       });
-      // 2. Log in to get tokens
-      const loginRes = await apiClient.post("/auth/login", {
-        email:    form.email,
-        password: form.password,
-      });
-      const { access_token, refresh_token } = loginRes.data;
-      localStorage.setItem("access_token", access_token);
-      if (refresh_token) localStorage.setItem("refresh_token", refresh_token);
-      // 3. New accounts always have no profile → onboarding
-      window.location.href = "/onboarding";
+      // 2. Redirect to verification page
+      router.push(`/verify-email?email=${encodeURIComponent(form.email)}`);
     } catch (err: unknown) {
       const e = err as { response?: { data?: { detail?: string } } };
       setError(e?.response?.data?.detail || "Registration failed. Try a different email.");
@@ -57,7 +51,7 @@ export default function RegisterPage() {
             <div className="w-12 h-12 bg-neon-lime border-2 border-surface-900 flex items-center justify-center shadow-brutal-sm">
               <Target className="w-6 h-6 text-surface-900" strokeWidth={2.5} />
             </div>
-            <span className="font-display font-bold text-xl text-white uppercase tracking-wider">FreelanceRadar</span>
+            <span className="font-display font-bold text-xl text-white uppercase tracking-wider">AutoLance</span>
           </div>
           <h1 className="text-5xl md:text-6xl font-display font-bold text-white mb-6 uppercase tracking-tighter leading-none">
             Find your best Upwork jobs

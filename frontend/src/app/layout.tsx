@@ -21,12 +21,12 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "FreelanceRadar — AI-Powered Upwork Intelligence",
+  title: "AutoLance — AI-Powered Upwork Intelligence",
   description:
     "Find your highest-converting Upwork jobs with AI-powered match scoring, client quality analysis, personalized cover letters, and real-time alerts.",
   keywords: "Upwork, freelance, AI, job matching, cover letter, proposal",
   openGraph: {
-    title: "FreelanceRadar",
+    title: "AutoLance",
     description: "AI-Powered Upwork Intelligence Engine",
     type: "website",
   },

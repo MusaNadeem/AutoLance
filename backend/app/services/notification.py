@@ -113,7 +113,7 @@ class NotificationService:
         <div style="font-family: Inter, sans-serif; max-width: 600px; margin: 0 auto; background: #0F0F1A; color: #fff; border-radius: 12px; overflow: hidden;">
           <div style="background: linear-gradient(135deg, #6366F1, #8B5CF6); padding: 32px; text-align: center;">
             <h1 style="margin: 0; font-size: 24px;">🎯 High-Match Job Alert</h1>
-            <p style="margin: 8px 0 0; opacity: 0.9;">FreelanceRadar found a great match for you</p>
+            <p style="margin: 8px 0 0; opacity: 0.9;">AutoLance found a great match for you</p>
           </div>
           <div style="padding: 32px;">
             <div style="background: #1A1A2E; border-radius: 8px; padding: 24px; margin-bottom: 24px;">
@@ -126,14 +126,14 @@ class NotificationService:
               </div>
             </div>
             <a href="{dashboard_url}" style="display: block; background: linear-gradient(135deg, #6366F1, #8B5CF6); color: white; text-align: center; padding: 16px; border-radius: 8px; text-decoration: none; font-weight: 600; margin-bottom: 16px;">
-              View on FreelanceRadar →
+              View on AutoLance →
             </a>
             <a href="{job_url}" style="display: block; background: #1A1A2E; color: #A78BFA; text-align: center; padding: 12px; border-radius: 8px; text-decoration: none; font-size: 14px;">
               View on Upwork
             </a>
           </div>
           <div style="padding: 16px 32px; border-top: 1px solid #2D2D4E; font-size: 12px; color: #6B7280; text-align: center;">
-            FreelanceRadar · Unsubscribe
+            AutoLance · Unsubscribe
           </div>
         </div>
         """
@@ -161,21 +161,42 @@ class NotificationService:
         subject: str,
         html_body: str,
     ) -> bool:
-        """Send a generic transactional email (password reset, verification, etc.)."""
-        if not settings.SENDGRID_API_KEY:
-            logger.warning("SendGrid not configured, skipping transactional email")
+        """Send a generic transactional email (password reset, verification, etc.) via Gmail API."""
+        if not settings.GMAIL_REFRESH_TOKEN:
+            logger.warning("Gmail API not configured, skipping transactional email")
             return False
         try:
-            from sendgrid import SendGridAPIClient
-            from sendgrid.helpers.mail import Mail
-            message = Mail(
-                from_email=(settings.SENDGRID_FROM_EMAIL, settings.SENDGRID_FROM_NAME),
-                to_emails=[(to_email, to_name)],
-                subject=subject,
-                html_content=html_body,
+            from google.oauth2.credentials import Credentials
+            from googleapiclient.discovery import build
+            from email.message import EmailMessage
+            import base64
+
+            creds = Credentials(
+                token=None,
+                refresh_token=settings.GMAIL_REFRESH_TOKEN,
+                client_id=settings.GMAIL_CLIENT_ID,
+                client_secret=settings.GMAIL_CLIENT_SECRET,
+                token_uri="https://oauth2.googleapis.com/token"
             )
-            sg = SendGridAPIClient(settings.SENDGRID_API_KEY)
-            sg.send(message)
+            service = build("gmail", "v1", credentials=creds, cache_discovery=False)
+
+            message = EmailMessage()
+            message.set_content("Please enable HTML to view this message.")
+            message.add_alternative(html_body, subtype="html")
+            message["To"] = f"{to_name} <{to_email}>"
+            message["From"] = settings.GMAIL_SENDER_EMAIL or "noreply@autolance.io"
+            message["Subject"] = subject
+
+            encoded_message = base64.urlsafe_b64encode(message.as_bytes()).decode()
+            create_message = {"raw": encoded_message}
+
+            # Run synchronous API call in thread pool since it's an async function
+            import asyncio
+            loop = asyncio.get_event_loop()
+            await loop.run_in_executor(
+                None,
+                lambda: service.users().messages().send(userId="me", body=create_message).execute()
+            )
             return True
         except Exception as e:
             logger.error("Transactional email failed", error=str(e))
@@ -282,7 +303,7 @@ class AlertService:
                         job_title=job.title or "",
                         match_score=match.overall_score,
                         job_url=job.url or "",
-                        dashboard_url="https://app.freelanceradar.io/dashboard",
+                        dashboard_url="https://app.autolance.io/dashboard",
                     )
                 except Exception:
                     pass

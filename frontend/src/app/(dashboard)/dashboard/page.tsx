@@ -5,10 +5,10 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import useSWR from "swr";
-import { fetcher, proposals as proposalsApi } from "@/lib/api";
+import { fetcher, proposals as proposalsApi, scrape } from "@/lib/api";
 import {
   TrendingUp, Target, Zap, Trophy, ArrowUp, ArrowRight,
-  Clock, Users, DollarSign, Activity, X, Shield, Sparkles,
+  Clock, Users, DollarSign, Activity, X, Shield, Sparkles, Loader2,
 } from "lucide-react";
 import { ScoreBadge } from "@/components/jobs/ScoreBadge";
 import { BidRecommendation } from "@/components/jobs/BidRecommendation";
@@ -109,6 +109,19 @@ function ProposalPipelineWidget() {
 export default function DashboardPage() {
   const router = useRouter();
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
+  const [scraping, setScraping] = useState(false);
+
+  const handleTriggerScrape = async () => {
+    setScraping(true);
+    try {
+      await scrape.trigger();
+      alert("Scraping started! Your dashboard will populate with jobs in a few minutes.");
+    } catch {
+      alert("Failed to trigger scrape. Check your API settings.");
+    } finally {
+      setScraping(false);
+    }
+  };
 
   const timeAgo = (input: string | Date) => {
     const date = typeof input === "string" ? new Date(input) : input;
@@ -206,9 +219,20 @@ export default function DashboardPage() {
             {jobsLoading ? (
               <div className="h-32 skeleton border-2 border-border" />
             ) : jobs.length === 0 ? (
-              <div className="text-center py-8 space-y-3 border-2 border-dashed border-surface-5 rounded-xl">
-                <p className="text-slate-400 text-sm font-mono">No jobs yet — trigger a scrape to get started.</p>
-                <a href="/dashboard/jobs" className="text-neon-lime text-xs font-mono font-bold hover:underline">Go to Job Feed →</a>
+              <div className="text-center py-12 space-y-6 border-2 border-dashed border-border bg-surface-900/50 backdrop-blur-sm rounded-xl">
+                <div className="w-16 h-16 bg-surface-800 border-2 border-border flex items-center justify-center mx-auto rounded-full mb-4 shadow-brutal-sm">
+                  <Activity className="w-8 h-8 text-neon-pink opacity-80" />
+                </div>
+                <h3 className="text-xl font-display font-bold text-white uppercase tracking-wide">Ready to find work?</h3>
+                <p className="text-slate-400 text-sm font-mono max-w-sm mx-auto">Your database is currently empty. Trigger a scrape to pull the latest personalized jobs from Upwork.</p>
+                <button 
+                  onClick={handleTriggerScrape}
+                  disabled={scraping}
+                  className="btn-primary flex items-center gap-2 mx-auto px-6 py-3"
+                >
+                  {scraping ? <Loader2 size={16} className="animate-spin" /> : <Zap size={16} />}
+                  <span>{scraping ? "TRIGGERING..." : "TRIGGER SCRAPE"}</span>
+                </button>
               </div>
             ) : (
               jobs.slice(0, 3).map((job: any, i: number) => {

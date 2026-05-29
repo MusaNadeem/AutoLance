@@ -4,7 +4,7 @@ import React, { useState, useCallback, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import useSWR from "swr";
-import { fetcher, saved as savedApi } from "@/lib/api";
+import { fetcher, saved as savedApi, scrape } from "@/lib/api";
 import type { Job, JobsListParams } from "@/types";
 import { ScoreBadge } from "@/components/jobs/ScoreBadge";
 import { BidRecommendation } from "@/components/jobs/BidRecommendation";
@@ -93,6 +93,19 @@ function JobsFeed() {
   const [filterParams, setFilterParams] = useState<JobsListParams>(() =>
     paramsFromSearch(searchParams)
   );
+  const [scraping, setScraping] = useState(false);
+
+  const handleTriggerScrape = async () => {
+    setScraping(true);
+    try {
+      await scrape.trigger();
+      alert("Scraping started! Your feed will populate with jobs in a few minutes.");
+    } catch {
+      alert("Failed to trigger scrape. Check your API settings.");
+    } finally {
+      setScraping(false);
+    }
+  };
 
   // Sync filter changes to URL
   const handleFilterChange = useCallback((next: Partial<JobsListParams>) => {
@@ -193,9 +206,17 @@ function JobsFeed() {
               ) : (
                 <>
                   <p className="text-white font-semibold">No jobs yet</p>
-                  <p className="text-slate-400 text-sm font-mono">
-                    Upload your CV, then click <span className="text-neon-lime font-bold">Scrape Now</span> in the bar above to find matching jobs.
+                  <p className="text-slate-400 text-sm font-mono max-w-sm mx-auto mb-4">
+                    Your database is currently empty. Trigger a scrape to pull the latest personalized jobs from Upwork.
                   </p>
+                  <button 
+                    onClick={handleTriggerScrape}
+                    disabled={scraping}
+                    className="btn-primary flex items-center gap-2 mx-auto px-6 py-3"
+                  >
+                    {scraping ? <span className="animate-spin text-sm">⏳</span> : <Zap size={16} />}
+                    <span>{scraping ? "TRIGGERING..." : "TRIGGER SCRAPE"}</span>
+                  </button>
                 </>
               )}
             </motion.div>

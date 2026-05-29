@@ -1,7 +1,7 @@
 """
 app/services/scoring.py
 -----------------------
-Deterministic scoring functions for FreelanceIQ Phase 1.
+Deterministic scoring functions for AutoLance Phase 1.
 
 All functions are pure Python (no DB, no async, no external calls).
 They are called from job_scorer.py after Claude returns its raw scores,

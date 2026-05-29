@@ -63,7 +63,7 @@ export default function LandingPage() {
             <div className="w-10 h-10 border-2 border-border bg-neon-lime flex items-center justify-center shadow-[4px_4px_0px_0px_rgba(46,46,46,1)] hover:shadow-[2px_2px_0px_0px_rgba(46,46,46,1)] hover:translate-x-[2px] hover:translate-y-[2px] transition-all cursor-pointer">
               <Target className="w-6 h-6 text-surface-900" strokeWidth={2.5} />
             </div>
-            <span className="font-display font-bold text-xl text-white uppercase tracking-wider">FreelanceRadar</span>
+            <span className="font-display font-bold text-xl text-white uppercase tracking-wider">AutoLance</span>
           </div>
           <div className="hidden md:flex items-center gap-8">
             <a href="#features" className="text-slate-400 font-mono font-bold uppercase text-sm hover:text-neon-lime transition-colors">Features</a>
@@ -107,7 +107,7 @@ export default function LandingPage() {
             </h1>
 
             <p className="text-xl md:text-2xl text-slate-400 max-w-3xl mx-auto mb-12 leading-relaxed font-sans">
-              FreelanceRadar scrapes Upwork in real time, analyzes your CV with Claude,
+              AutoLance scrapes Upwork in real time, analyzes your CV with Claude,
               and surfaces your highest-converting opportunities with match scores,
               client quality signals, and personalized cover letters — instantly.
             </p>
@@ -227,10 +227,10 @@ export default function LandingPage() {
             <div className="w-8 h-8 border-2 border-border bg-neon-lime flex items-center justify-center">
               <Target className="w-4 h-4 text-surface-900" strokeWidth={3} />
             </div>
-            <span className="font-display font-bold text-white text-lg uppercase tracking-wider">FreelanceRadar</span>
+            <span className="font-display font-bold text-white text-lg uppercase tracking-wider">AutoLance</span>
           </div>
           <p className="text-slate-500 font-mono text-sm uppercase tracking-widest font-bold">
-            © 2026 FreelanceRadar. Built with Claude + Bright Data.
+            © 2026 AutoLance. Built with Claude + Bright Data.
           </p>
         </div>
       </footer>

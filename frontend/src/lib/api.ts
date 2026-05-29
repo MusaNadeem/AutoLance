@@ -1,5 +1,5 @@
 /**
- * FreelanceIQ API Client — Phase 2
+ * AutoLance API Client — Phase 2
  * All components call this file. Never raw fetch() in a component.
  */
 
@@ -68,6 +68,10 @@ export const auth = {
     apiClient.post("/auth/reset-password", { token, new_password }),
   verifyEmail: (token: string) =>
     apiClient.get(`/auth/verify?token=${encodeURIComponent(token)}`),
+  verifyOtp: (email: string, otp: string) =>
+    apiClient.post("/auth/verify-otp", { email, otp }),
+  resendOtp: (email: string) =>
+    apiClient.post("/auth/resend-otp", { email }),
 };
 
 export const cv = {

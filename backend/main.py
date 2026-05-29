@@ -1,5 +1,5 @@
 """
-FreelanceRadar — FastAPI Application Entry Point
+AutoLance — FastAPI Application Entry Point
 """
 import structlog
 from contextlib import asynccontextmanager
@@ -38,7 +38,7 @@ limiter = Limiter(key_func=get_remote_address)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup and shutdown logic."""
-    logger.info("FreelanceRadar API starting", version=settings.APP_VERSION)
+    logger.info("AutoLance API starting", version=settings.APP_VERSION)
 
     if settings.DEBUG:
         await create_tables()
@@ -46,12 +46,12 @@ async def lifespan(app: FastAPI):
 
     yield
 
-    logger.info("FreelanceRadar API shutting down")
+    logger.info("AutoLance API shutting down")
 
 
 # ── App Factory ───────────────────────────────────────────
 app = FastAPI(
-    title="FreelanceRadar API",
+    title="AutoLance API",
     description="AI-Powered Upwork Intelligence Engine",
     version=settings.APP_VERSION,
     docs_url="/docs",

@@ -1,5 +1,5 @@
 """
-FreelanceRadar — Database Engine & Session Management
+AutoLance — Database Engine & Session Management
 SQLAlchemy 2.0 async with pgvector support
 """
 from contextlib import asynccontextmanager

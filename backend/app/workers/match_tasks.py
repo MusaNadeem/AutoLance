@@ -148,7 +148,7 @@ async def _check_and_dispatch_alert(db, user: User, job: Job, match: MatchScore)
             job_title=job.title,
             match_score=match.overall_score,
             job_url=job.url or "",
-            dashboard_url="https://app.freelanceradar.io/dashboard",
+            dashboard_url="https://app.autolance.io/dashboard",
         )
         _log_alert_event(db, user.id, job.id, match.id, trigger_reason, "email")
 

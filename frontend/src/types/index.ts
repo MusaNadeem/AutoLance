@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// FreelanceIQ — API Type Contract
+// AutoLance — API Type Contract
 // Phase 1: Job, Client, Score, Bid types locked.
 // Phase 2+: ScrapeStatus, Notification stubs.
 // Phase 3+: CVProfile stub.

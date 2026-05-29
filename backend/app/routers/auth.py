@@ -39,35 +39,47 @@ class RefreshRequest(BaseModel):
 @router.post("/register", response_model=TokenResponse, status_code=201)
 async def register(body: RegisterRequest, db: AsyncSession = Depends(get_db)):
     """Register a new user account and send a verification email."""
+    from datetime import datetime, timezone, timedelta
+    import secrets
+
     existing = await db.execute(select(User).where(User.email == body.email))
-    if existing.scalar_one_or_none():
-        raise HTTPException(status_code=400, detail="Email already registered")
+    user = existing.scalar_one_or_none()
 
-    import uuid as _uuid
-    verification_token = _uuid.uuid4().hex
+    if user:
+        if user.is_verified:
+            raise HTTPException(status_code=400, detail="Email already registered")
+        # Overwrite unverified user details
+        user.password_hash = hash_password(body.password)
+        user.full_name = body.full_name
+    else:
+        user = User(
+            email=body.email,
+            password_hash=hash_password(body.password),
+            full_name=body.full_name,
+            is_verified=False,
+        )
+        db.add(user)
 
-    user = User(
-        email=body.email,
-        password_hash=hash_password(body.password),
-        full_name=body.full_name,
-        verification_token=verification_token,
-    )
-    db.add(user)
+    # Generate 6-digit OTP
+    otp = str(secrets.randbelow(900000) + 100000)
+    expiry = datetime.now(timezone.utc) + timedelta(minutes=10)
+
+    user.verification_token = otp
+    user.reset_token_expires = expiry
     await db.flush()
 
     # Best-effort verification email
     try:
         from app.services.notification import notification_service
-        from app.config import settings as app_settings
-        frontend_url = getattr(app_settings, "NEXT_PUBLIC_API_URL", "http://localhost:3000").replace(":8000", ":3000")
         await notification_service.send_transactional_email(
             to_email=user.email,
             to_name=user.full_name or "there",
-            subject="Verify your AutoLance email",
+            subject="Your AutoLance Verification Code",
             html_body=(
                 f"<p>Welcome to AutoLance, {user.full_name or 'there'}!</p>"
-                f"<p>Click the link below to verify your email address.</p>"
-                f"<p><a href='{frontend_url}/verify?token={verification_token}'>Verify Email</a></p>"
+                f"<p>Your email verification code is:</p>"
+                f"<h2 style='letter-spacing: 5px;'>{otp}</h2>"
+                f"<p>This code will expire in 10 minutes.</p>"
             ),
         )
     except Exception:
@@ -79,15 +91,76 @@ async def register(body: RegisterRequest, db: AsyncSession = Depends(get_db)):
     )
 
 
-@router.get("/verify")
-async def verify_email(token: str, db: AsyncSession = Depends(get_db)):
-    """Verify email address via token from the verification link."""
-    result = await db.execute(select(User).where(User.verification_token == token))
+class VerifyOtpRequest(BaseModel):
+    email: EmailStr
+    otp: str
+
+class ResendOtpRequest(BaseModel):
+    email: EmailStr
+
+@router.post("/resend-otp")
+async def resend_otp(body: ResendOtpRequest, db: AsyncSession = Depends(get_db)):
+    """Resend the email verification OTP."""
+    from datetime import datetime, timezone, timedelta
+    import secrets
+
+    result = await db.execute(select(User).where(User.email == body.email))
     user = result.scalar_one_or_none()
+
+    if not user or user.is_verified:
+        # Don't reveal if email exists or is already verified to prevent enumeration
+        return {"detail": "If your account exists and is unverified, a new code has been sent."}
+
+    # Generate new 6-digit OTP
+    otp = str(secrets.randbelow(900000) + 100000)
+    expiry = datetime.now(timezone.utc) + timedelta(minutes=10)
+
+    user.verification_token = otp
+    user.reset_token_expires = expiry
+    await db.flush()
+
+    # Best-effort email send
+    try:
+        from app.services.notification import notification_service
+        await notification_service.send_transactional_email(
+            to_email=user.email,
+            to_name=user.full_name or "there",
+            subject="Your New AutoLance Verification Code",
+            html_body=(
+                f"<p>Hi {user.full_name or 'there'},</p>"
+                f"<p>Here is your new email verification code:</p>"
+                f"<h2 style='letter-spacing: 5px;'>{otp}</h2>"
+                f"<p>This code will expire in 10 minutes.</p>"
+            ),
+        )
+    except Exception:
+        pass
+
+    return {"detail": "If your account exists and is unverified, a new code has been sent."}
+
+@router.post("/verify-otp")
+async def verify_otp(body: VerifyOtpRequest, db: AsyncSession = Depends(get_db)):
+    """Verify email address via 6-digit OTP."""
+    from datetime import datetime, timezone
+    
+    result = await db.execute(select(User).where(User.email == body.email))
+    user = result.scalar_one_or_none()
+    
     if not user:
-        raise HTTPException(status_code=400, detail="Invalid verification token")
+        raise HTTPException(status_code=400, detail="Invalid email or OTP")
+        
+    if user.is_verified:
+        return {"detail": "Email already verified"}
+
+    if user.verification_token != body.otp:
+        raise HTTPException(status_code=400, detail="Invalid OTP")
+        
+    if not user.reset_token_expires or user.reset_token_expires < datetime.now(timezone.utc):
+        raise HTTPException(status_code=400, detail="OTP has expired")
+
     user.is_verified = True
     user.verification_token = None
+    user.reset_token_expires = None
     return {"detail": "Email verified successfully"}
 
 
@@ -102,6 +175,8 @@ async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)):
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password",
         )
+    if not user.is_verified:
+        raise HTTPException(status_code=403, detail="Please verify your email address to log in.")
     if not user.is_active:
         raise HTTPException(status_code=403, detail="Account disabled")
 

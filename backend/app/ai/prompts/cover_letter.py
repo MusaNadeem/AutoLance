@@ -1,22 +1,6 @@
 """Cover Letter Generator Claude Prompt"""
 
-SYSTEM_PROMPT = """You are an elite freelance proposal writer who has helped hundreds of freelancers win contracts on Upwork.
-
-Your cover letters:
-- Sound completely human and personalized — never generic AI-speak
-- Open with a hook that directly addresses the client's specific pain point
-- Demonstrate relevant expertise with concrete specifics (not vague claims)
-- Show genuine understanding of the project requirements
-- Include social proof or relevant credibility signals naturally
-- Close with a clear, confident, low-pressure CTA
-- Are 150-250 words — concise but compelling
-- Mirror the freelancer's natural voice and tone
-
-NEVER use: "I am writing to express", "I would love to", "I am confident", 
-"As a [title]", "Please feel free", or any other corporate clichés.
-
-Return ONLY the cover letter text — no JSON, no formatting, just the letter.
-"""
+SYSTEM_PROMPT = "You are an expert Upwork freelancer writing a winning proposal."
 
 def build_cover_letter_prompt(
     profile: dict,
@@ -26,57 +10,43 @@ def build_cover_letter_prompt(
     tone: str = "professional",
     custom_instructions: str = "",
 ) -> str:
-    style_guidance = {
-        "professional": "Confident, polished, results-focused. Authoritative but not arrogant.",
-        "casual": "Friendly, conversational, approachable. Like messaging a colleague.",
-        "technical": "Lead with technical depth. Show you understand the stack and challenges.",
-        "creative": "Engaging, energetic, slightly unconventional opener. Show personality.",
-    }
+    # Extract variables safely from the dictionaries
+    job_title = job.get('title', 'Unknown')
+    job_description = job.get('description', '')
+    budget = job.get('budget_type', 'Unknown')
+    
+    req_skills = job.get('required_skills', '')
+    required_skills = ', '.join(req_skills) if isinstance(req_skills, list) else req_skills
+    
+    full_name = profile.get('headline', 'Freelancer') # Will be supplemented by headline
+    prof_skills = profile.get('skills', '')
+    skills = ', '.join(prof_skills) if isinstance(prof_skills, list) else prof_skills
+    experience_level = profile.get('experience_level', '')
+    niche = profile.get('niche', '')
+    
+    prof_spec = profile.get('specializations', '')
+    summary = ', '.join(prof_spec) if isinstance(prof_spec, list) else prof_spec
+    
+    custom_instructions_block = f"\nAdditional Instructions:\n{custom_instructions}\n" if custom_instructions else ""
 
-    # Phase 3 tone overrides — replace style_guidance when tone is set explicitly
-    tone_instruction_blocks = {
-        "professional": (
-            "TONE: Formal and results-focused. Use precise metrics language. "
-            "No contractions. No casual phrasing. Lead with a quantified outcome or "
-            "specific technical credential. Keep every sentence purposeful."
-        ),
-        "friendly": (
-            "TONE: Warm, conversational, human. Use contractions freely (I've, I'm, you'll). "
-            "Write as if talking to a smart colleague over coffee. "
-            "Show genuine enthusiasm without being sycophantic."
-        ),
-        "bold": (
-            "TONE: Lead immediately with your strongest value proposition — no preamble, "
-            "no pleasantries. First sentence must be a direct claim or result. "
-            "Be direct, brief, and confident. Aim for 120–180 words max."
-        ),
-    }
+    return f"""Job Title: {job_title}
+Job Description: {job_description}
+Budget: {budget}
+Required Skills: {required_skills}
 
-    # tone param takes precedence over style when it's one of the Phase 3 values
-    if tone in tone_instruction_blocks:
-        tone_block = tone_instruction_blocks[tone]
-        effective_style_guidance = tone_instruction_blocks[tone]
-    else:
-        effective_style_guidance = style_guidance.get(style, style_guidance["professional"])
-        tone_block = f"WRITING STYLE: {style}\nStyle guidance: {effective_style_guidance}"
-
-    custom_instructions_block = f"ADDITIONAL INSTRUCTIONS: {custom_instructions}\n" if custom_instructions else ""
-
-    return f"""Write a cover letter for this job application.
-
-FREELANCER PROFILE:
-{profile}
-
-JOB POSTING:
-{job}
-
-MATCH ANALYSIS (use these insights):
-- Top strengths: {match.get('strengths', [])}
-- Recommended approach: {match.get('recommended_approach', '')}
-- Proposal hook: {match.get('proposal_hook', '')}
-- Client quality: {match.get('client_quality_score', 'unknown')}/100
-
-{tone_block}
-
+Freelancer Profile:
+- Name: {full_name}
+- Skills: {skills}
+- Experience Level: {experience_level}
+- Niche: {niche}
+- Summary: {summary}
 {custom_instructions_block}
-Write the cover letter now. Start directly with the opening line."""
+Write a concise, personalized Upwork proposal (150-200 words) that:
+1. Opens with a hook directly addressing the client's specific problem (NOT "I saw your job post")
+2. Shows you understand exactly what they need in 1-2 sentences
+3. Briefly explains why you are the right person with 1-2 specific relevant experiences
+4. Ends with a clear, low-friction call to action
+5. Sounds human, confident, and direct — never generic or sycophantic
+6. Never starts with "I" as the first word
+
+Return ONLY the cover letter text — no JSON, no formatting, just the letter."""
