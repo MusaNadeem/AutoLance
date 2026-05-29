@@ -33,7 +33,7 @@ export default function RegisterPage() {
         full_name: form.name,
       });
       // 2. Redirect to verification page
-      router.push(`/verify-email?email=${encodeURIComponent(form.email)}`);
+      router.push(`/verify-email?email=${encodeURIComponent(form.email)}&password=${encodeURIComponent(form.password)}`);
     } catch (err: unknown) {
       const e = err as { response?: { data?: { detail?: string } } };
       setError(e?.response?.data?.detail || "Registration failed. Try a different email.");

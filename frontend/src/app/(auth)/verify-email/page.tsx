@@ -10,6 +10,7 @@ function VerifyEmailForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const email = searchParams.get("email") || "";
+  const password = searchParams.get("password") || "";
 
   const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
@@ -51,6 +52,24 @@ function VerifyEmailForm() {
     try {
       await auth.verifyOtp(email, otp);
       setSuccess(true);
+      
+      // Auto login if password is provided
+      if (password) {
+        try {
+          const loginRes = await auth.login({ email, password });
+          if (loginRes.data?.access_token) {
+            localStorage.setItem("access_token", loginRes.data.access_token);
+            if (loginRes.data.refresh_token) {
+              localStorage.setItem("refresh_token", loginRes.data.refresh_token);
+            }
+          }
+          router.push("/onboarding");
+          return;
+        } catch {
+          // If login fails, fallback to login page
+        }
+      }
+
       setTimeout(() => {
         router.push("/login");
       }, 2000);
@@ -66,7 +85,7 @@ function VerifyEmailForm() {
     return (
       <div className="w-full max-w-md mx-auto p-8 rounded-2xl bg-[#1A1A2E]/80 backdrop-blur-xl border border-[#2D2D4E] shadow-[0_8px_32px_rgba(0,0,0,0.4)] text-center">
         <h2 className="text-2xl font-bold text-white mb-2 tracking-tight">Email Verified</h2>
-        <p className="text-[#A78BFA]">Your email has been successfully verified. Redirecting to login...</p>
+        <p className="text-[#A78BFA]">Your email has been successfully verified. {password ? "Logging you in..." : "Redirecting to login..."}</p>
       </div>
     );
   }
