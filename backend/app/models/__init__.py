@@ -17,7 +17,7 @@ class CVDocument(Base):
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"))
     file_name = Column(String(255), nullable=False)
     file_url = Column(Text, nullable=False)
-    file_type = Column(String(50))
+    file_type = Column(String(150))   # MIME types can be long (DOCX = 73 chars)
     file_size_bytes = Column(Integer)
     raw_text = Column(Text)
     parsed_data = Column(JSONB)
