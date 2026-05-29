@@ -3,7 +3,7 @@
 import useSWR, { mutate } from "swr";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { DollarSign, Trophy, TrendingUp, ChevronDown, Loader2, FileText, Target, MessageSquare, Download } from "lucide-react";
+import { DollarSign, Trophy, TrendingUp, ChevronDown, Loader2, FileText, Download } from "lucide-react";
 import { proposals } from "@/lib/api";
 
 const COLUMNS = [

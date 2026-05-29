@@ -52,7 +52,6 @@ export default function OnboardingPage() {
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // ── Profile form state ────────────────────────────────────────────────────
-  const [profileLoading, setProfileLoading] = useState(false);
   const [saving,         setSaving]         = useState(false);
   const [error,          setError]          = useState<string | null>(null);
   const [headline,       setHeadline]       = useState("");
@@ -306,7 +305,7 @@ export default function OnboardingPage() {
               {skippedCV && (
                 <div className="flex items-start gap-2 px-4 py-3 border-2 border-neon-orange bg-neon-orange/10 text-neon-orange font-mono text-xs">
                   <AlertTriangle size={14} className="mt-0.5 shrink-0" />
-                  <span>No CV uploaded. You can still use the app, but "Scrape Now" will use generic keywords until you upload your CV from the <a href="/dashboard/cv" className="underline hover:text-white">CV page</a>.</span>
+                  <span>No CV uploaded. You can still use the app, but &quot;Scrape Now&quot; will use generic keywords until you upload your CV from the <a href="/dashboard/cv" className="underline hover:text-white">CV page</a>.</span>
                 </div>
               )}
 

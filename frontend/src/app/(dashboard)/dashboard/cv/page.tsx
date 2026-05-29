@@ -11,6 +11,7 @@ import { cv as cvApi, cvProfile } from "@/lib/api";
 
 type ParseStatus = "idle" | "uploading" | "parsing" | "done" | "error";
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const mockProfile = {
   headline: "Senior Full-Stack Engineer | Python · React · FastAPI",
   niche: "Full-Stack SaaS Development",

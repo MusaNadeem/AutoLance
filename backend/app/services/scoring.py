@@ -64,10 +64,10 @@ def aggregate_score(
     overridden via environment variables without code changes.
 
     Default weights (must sum to 1.0 — validated at startup):
-        skill_match    → 35 %  (SCORE_WEIGHT_SKILL)
-        roi            → 30 %  (SCORE_WEIGHT_ROI)
-        competition    → 20 %  (SCORE_WEIGHT_COMPETITION)
-        client_quality → 15 %  (SCORE_WEIGHT_CLIENT_QUALITY)
+        skill_match    → 40 %  (SCORE_WEIGHT_RELEVANCE)
+        client_quality → 25 %  (SCORE_WEIGHT_CLIENT_QUALITY)
+        roi            → 20 %  (SCORE_WEIGHT_BUDGET)
+        competition    → 15 %  (SCORE_WEIGHT_COMPETITION)
 
     Args:
         skill_match:    Skill match score. Accepted as 0-100 or 0-1.
@@ -91,8 +91,8 @@ def aggregate_score(
     cq = _norm(client_quality)
 
     score = (
-        s  * settings.SCORE_WEIGHT_SKILL
-        + r  * settings.SCORE_WEIGHT_ROI
+        s  * settings.SCORE_WEIGHT_RELEVANCE
+        + r  * settings.SCORE_WEIGHT_BUDGET
         + c  * settings.SCORE_WEIGHT_COMPETITION
         + cq * settings.SCORE_WEIGHT_CLIENT_QUALITY
     )

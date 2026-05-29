@@ -241,16 +241,16 @@ function JobsFeed() {
                           const isSaved = savedIds.has(job.id);
                           setSavedIds((prev) => {
                             const next = new Set(prev);
-                            isSaved ? next.delete(job.id) : next.add(job.id);
+                            if (isSaved) next.delete(job.id); else next.add(job.id);
                             return next;
                           });
                           try {
-                            isSaved ? await savedApi.unsave(job.id) : await savedApi.save(job.id);
+                            if (isSaved) await savedApi.unsave(job.id); else await savedApi.save(job.id);
                           } catch {
                             // revert on error
                             setSavedIds((prev) => {
                               const next = new Set(prev);
-                              isSaved ? next.add(job.id) : next.delete(job.id);
+                              if (isSaved) next.add(job.id); else next.delete(job.id);
                               return next;
                             });
                           }
