@@ -160,15 +160,12 @@ async def scrape_stream(
                 if await request.is_disconnected():
                     break
 
-                # expire_on_commit=False is set in the session factory, but we still
-                # need to expire cached attributes so we see fresh DB state each tick.
-                await stream_db.execute(select(1))  # keep-alive + forces expiry flush
-
+                # expire_all() marks cached ORM state as stale so the
+                # next execute() always reads fresh data from the DB.
+                stream_db.expire_all()
                 run_result = await stream_db.execute(
                     select(ScrapingRun).order_by(desc(ScrapingRun.started_at)).limit(1)
                 )
-                # expire cached ORM objects so next read hits the DB
-                stream_db.expire_all()
 
                 run = run_result.scalar_one_or_none()
                 run_id   = str(run.id)   if run else None
