@@ -235,7 +235,7 @@ async def forgot_password(body: ForgotPasswordRequest, db: AsyncSession = Depend
         try:
             from app.services.notification import notification_service
             from app.config import settings as app_settings
-            frontend_url = getattr(app_settings, "NEXT_PUBLIC_API_URL", "http://localhost:3000").replace(":8000", ":3000")
+            frontend_url = app_settings.ALLOWED_ORIGINS.split(',')[0].strip()
             await notification_service.send_transactional_email(
                 to_email=user.email,
                 to_name=user.full_name or "there",
