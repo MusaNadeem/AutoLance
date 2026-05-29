@@ -55,83 +55,6 @@ function CompactScoreBar({ score }: { score: number }) {
   );
 }
 
-// ── Demo fallback data (matches Job interface) ────────────────────────────────
-
-const DEMO_JOBS: Job[] = [
-  {
-    id: "demo-1",
-    upwork_job_id: "demo-1",
-    title: "FastAPI Backend — Real-Time Analytics",
-    description:
-      "Build a high-throughput FastAPI backend with Redis caching and Postgres analytics queries.",
-    budget_type: "hourly",
-    budget_min: 75,
-    budget_max: 110,
-    proposal_count: 6,
-    proposal_tier: "low",
-    required_skills: ["FastAPI", "PostgreSQL", "Redis"],
-    scraped_at: new Date().toISOString(),
-    score: { overall: 0.88, skill_match: 0.92, roi: 0.85, competition: 0.90, client_quality: 0.82 },
-    bid: {
-      recommended: 95,
-      range_min: 85.5,
-      range_max: 104.5,
-      range: "$85.50 – $104.50 acceptable range",
-      strategy: "Value",
-      rationale:
-        "Bidding $95.00/hr using a Value strategy. The client's budget is above your target rate. Low competition detected (6 proposals).",
-      confidence: 0.85,
-    },
-  },
-  {
-    id: "demo-2",
-    upwork_job_id: "demo-2",
-    title: "React Native Developer for FinTech App",
-    description: "Implement core flows for a fintech mobile app and integrate with REST APIs.",
-    budget_type: "fixed",
-    budget_min: 2500,
-    budget_max: 4500,
-    proposal_count: 14,
-    proposal_tier: "medium",
-    required_skills: ["React Native", "TypeScript", "API Integration"],
-    scraped_at: new Date().toISOString(),
-    score: { overall: 0.72, skill_match: 0.75, roi: 0.68, competition: 0.65, client_quality: 0.64 },
-    bid: {
-      recommended: 3800,
-      range_min: 3420,
-      range_max: 4180,
-      range: "$3,420.00 – $4,180.00 acceptable range",
-      strategy: "Competitive",
-      rationale:
-        "Bidding $3,800.00 using a Competitive strategy based on the client's budget anchor of $4,500.00. Adjusted down for moderate competition (14 proposals).",
-      confidence: 0.71,
-    },
-  },
-  {
-    id: "demo-3",
-    upwork_job_id: "demo-3",
-    title: "Python ML Engineer — Healthcare AI",
-    description: "Train and deploy a small NLP model, build evaluation, and integrate into an API.",
-    budget_type: "hourly",
-    budget_min: 90,
-    budget_max: 140,
-    proposal_count: 3,
-    proposal_tier: "low",
-    required_skills: ["Python", "ML", "NLP"],
-    scraped_at: new Date().toISOString(),
-    score: { overall: 0.95, skill_match: 0.97, roi: 0.94, competition: 0.96, client_quality: 0.91 },
-    bid: {
-      recommended: 147,
-      range_min: 132.3,
-      range_max: 161.7,
-      range: "$132.30 – $161.70 acceptable range",
-      strategy: "Premium",
-      rationale:
-        "Bidding $147.00/hr using a Premium strategy. High-quality client (91% score); they hire consistently. Low competition (3 proposals).",
-      confidence: 0.93,
-    },
-  },
-];
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
@@ -193,16 +116,14 @@ function JobsFeed() {
   const swrKey = buildApiUrl(filterParams);
 
   const { data: jobsData, isLoading } = useSWR(swrKey, fetcher, {
-    fallbackData: { jobs: DEMO_JOBS, total: DEMO_JOBS.length },
     revalidateOnFocus: false,
     revalidateOnReconnect: false,
     shouldRetryOnError: false,
     errorRetryCount: 0,
   });
 
-  const apiJobs: Job[] = jobsData?.jobs ?? [];
-  const jobs: Job[] = apiJobs.length ? apiJobs : DEMO_JOBS;
-  const total: number = jobsData?.total ?? jobs.length;
+  const jobs: Job[] = jobsData?.jobs ?? [];
+  const total: number = jobsData?.total ?? 0;
 
   const { data: jobDetails } = useSWR<Job>(
     selectedJobId ? `/jobs/${selectedJobId}` : null,
@@ -257,15 +178,26 @@ function JobsFeed() {
               className="text-center py-16 space-y-4"
             >
               <SearchX size={48} className="text-slate-600 mx-auto" />
-              <p className="text-slate-400 font-mono text-sm uppercase tracking-widest">
-                No jobs match your filters
-              </p>
-              <button
-                onClick={handleClear}
-                className="text-neon-lime font-mono text-xs font-bold uppercase border border-neon-lime px-4 py-2 hover:bg-neon-lime hover:text-surface-900 transition-colors"
-              >
-                Clear Filters
-              </button>
+              {filterParams.min_score || filterParams.budget_type || filterParams.posted_within ? (
+                <>
+                  <p className="text-slate-400 font-mono text-sm uppercase tracking-widest">
+                    No jobs match your filters
+                  </p>
+                  <button
+                    onClick={handleClear}
+                    className="text-neon-lime font-mono text-xs font-bold uppercase border border-neon-lime px-4 py-2 hover:bg-neon-lime hover:text-surface-900 transition-colors"
+                  >
+                    Clear Filters
+                  </button>
+                </>
+              ) : (
+                <>
+                  <p className="text-white font-semibold">No jobs yet</p>
+                  <p className="text-slate-400 text-sm font-mono">
+                    Upload your CV, then click <span className="text-neon-lime font-bold">Scrape Now</span> in the bar above to find matching jobs.
+                  </p>
+                </>
+              )}
             </motion.div>
           ) : (
             jobs.map((job, i) => {

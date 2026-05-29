@@ -56,62 +56,28 @@ function ChartTooltip({ active, payload, label }: {
   );
 }
 
-// ── Demo fallback data ─────────────────────────────────────────────────────────
-
-const DEMO_DATA: AnalyticsData = {
-  jobs_scraped_total: 142,
-  avg_score: 68,
-  score_distribution: [
-    { bucket: "0-25",   count: 8 },
-    { bucket: "25-50",  count: 31 },
-    { bucket: "50-75",  count: 62 },
-    { bucket: "75-100", count: 41 },
-  ],
-  top_skills_in_demand: [
-    { skill: "Python",       count: 38 },
-    { skill: "React",        count: 34 },
-    { skill: "FastAPI",      count: 27 },
-    { skill: "TypeScript",   count: 25 },
-    { skill: "PostgreSQL",   count: 21 },
-    { skill: "Node.js",      count: 19 },
-    { skill: "AWS",          count: 16 },
-    { skill: "Next.js",      count: 14 },
-    { skill: "Docker",       count: 11 },
-    { skill: "Redis",        count: 9  },
-  ],
-  scrape_history: [
-    { date: "May 19", jobs_found: 18, jobs_new: 7,  status: "completed" },
-    { date: "May 20", jobs_found: 24, jobs_new: 12, status: "completed" },
-    { date: "May 21", jobs_found: 15, jobs_new: 5,  status: "completed" },
-    { date: "May 22", jobs_found: 31, jobs_new: 18, status: "completed" },
-    { date: "May 23", jobs_found: 22, jobs_new: 9,  status: "completed" },
-    { date: "May 24", jobs_found: 19, jobs_new: 6,  status: "completed" },
-    { date: "May 25", jobs_found: 13, jobs_new: 4,  status: "completed" },
-  ],
-};
-
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function AnalyticsPage() {
-  const { data: raw, isLoading } = useSWR<AnalyticsData>("/analytics", fetcher, {
-    fallbackData: DEMO_DATA,
+  const { data, isLoading } = useSWR<AnalyticsData>("/analytics", fetcher, {
     revalidateOnFocus: false,
     shouldRetryOnError: false,
     errorRetryCount: 0,
   });
 
-  const data: AnalyticsData = raw ?? DEMO_DATA;
-
-  const totalScored = data.score_distribution.reduce((s, b) => s + b.count, 0);
-  const topSkill = data.top_skills_in_demand[0]?.skill ?? "—";
-  const lastScrape = data.scrape_history[data.scrape_history.length - 1];
+  const scoreDist  = (data?.score_distribution  ?? []) as import("@/types").ScoreDistributionBucket[];
+  const topSkills  = (data?.top_skills_in_demand ?? []) as import("@/types").TopSkillEntry[];
+  const scrapeHist = (data?.scrape_history       ?? []) as import("@/types").ScrapeHistoryEntry[];
+  const totalScored = scoreDist.reduce((s: number, b) => s + b.count, 0);
+  const topSkill = topSkills[0]?.skill ?? "—";
+  const lastScrape = scrapeHist[scrapeHist.length - 1];
 
   const summaryCards = [
     {
       id: "stat-jobs-total",
       icon: Database,
       label: "Jobs Scraped",
-      value: data.jobs_scraped_total,
+      value: data?.jobs_scraped_total ?? "—",
       color: "text-neon-lime",
       border: "border-neon-lime",
     },
@@ -119,7 +85,7 @@ export default function AnalyticsPage() {
       id: "stat-avg-score",
       icon: TrendingUp,
       label: "Avg Match Score",
-      value: `${data.avg_score}/100`,
+      value: data ? `${data.avg_score}/100` : "—",
       color: "text-neon-cyan",
       border: "border-neon-cyan",
     },
@@ -202,7 +168,7 @@ export default function AnalyticsPage() {
             <div className="h-48 skeleton" />
           ) : (
             <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={data.score_distribution} barCategoryGap="20%">
+              <BarChart data={scoreDist} barCategoryGap="20%">
                 <CartesianGrid strokeDasharray="3 3" stroke="#2e2e2e" vertical={false} />
                 <XAxis
                   dataKey="bucket"
@@ -218,7 +184,7 @@ export default function AnalyticsPage() {
                 />
                 <Tooltip content={<ChartTooltip />} />
                 <Bar dataKey="count" name="Jobs" radius={0}>
-                  {data.score_distribution.map((entry) => (
+                  {scoreDist.map((entry) => (
                     <Cell key={entry.bucket} fill={BUCKET_COLORS[entry.bucket]} />
                   ))}
                 </Bar>
@@ -226,7 +192,7 @@ export default function AnalyticsPage() {
             </ResponsiveContainer>
           )}
           <div className="flex flex-wrap gap-3 mt-4">
-            {data.score_distribution.map((b) => (
+            {scoreDist.map((b) => (
               <div key={b.bucket} className="flex items-center gap-1.5">
                 <div className="w-3 h-3" style={{ backgroundColor: BUCKET_COLORS[b.bucket] }} />
                 <span className={`font-mono text-[10px] font-bold uppercase ${SCORE_LABEL_COLORS[b.bucket]}`}>
@@ -251,13 +217,13 @@ export default function AnalyticsPage() {
           </h2>
           {isLoading ? (
             <div className="h-48 skeleton" />
-          ) : data.scrape_history.length === 0 ? (
+          ) : scrapeHist.length === 0 ? (
             <div className="h-48 flex items-center justify-center text-slate-600 font-mono text-sm">
               No scrape runs yet
             </div>
           ) : (
             <ResponsiveContainer width="100%" height={200}>
-              <LineChart data={data.scrape_history}>
+              <LineChart data={scrapeHist}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#2e2e2e" vertical={false} />
                 <XAxis
                   dataKey="date"
@@ -320,14 +286,14 @@ export default function AnalyticsPage() {
         </h2>
         {isLoading ? (
           <div className="h-64 skeleton" />
-        ) : data.top_skills_in_demand.length === 0 ? (
+        ) : topSkills.length === 0 ? (
           <div className="h-64 flex items-center justify-center text-slate-600 font-mono text-sm">
             No skill data yet
           </div>
         ) : (
           <ResponsiveContainer width="100%" height={280}>
             <BarChart
-              data={data.top_skills_in_demand}
+              data={topSkills}
               layout="vertical"
               barCategoryGap="18%"
             >

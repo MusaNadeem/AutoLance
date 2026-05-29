@@ -1,15 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   Target, LayoutDashboard, Briefcase, FileText,
   BarChart3, Bell, Settings, Upload, LogOut, Menu, User, Bookmark,
 } from "lucide-react";
 import { useState } from "react";
+import useSWR from "swr";
 import { StatusBar } from "@/components/layout/StatusBar";
 import { NotificationBell } from "@/components/layout/NotificationBell";
+import { auth } from "@/lib/api";
 
 const navItems = [
   { href: "/dashboard",           label: "Dashboard",     icon: LayoutDashboard },
@@ -25,7 +27,24 @@ const navItems = [
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router   = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const { data: me } = useSWR(
+    "/auth/me",
+    () => auth.me().then((r) => r.data),
+    { revalidateOnFocus: false }
+  );
+
+  const handleLogout = () => {
+    localStorage.removeItem("access_token");
+    localStorage.removeItem("refresh_token");
+    router.push("/login");
+  };
+
+  const displayName  = me?.full_name || me?.email?.split("@")[0] || "User";
+  const avatarLetter = displayName.charAt(0).toUpperCase();
+  const tierLabel    = (me?.subscription_tier || "free").toUpperCase() + " PLAN";
 
   return (
     <div className="flex h-screen overflow-hidden bg-surface-900">
@@ -41,7 +60,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <Target className="w-5 h-5 text-surface-900 stroke-[2.5px]" />
           </div>
           <div>
-            <span className="font-display font-bold text-white uppercase tracking-wider text-sm">FreelanceRadar</span>
+            <span className="font-display font-bold text-white uppercase tracking-wider text-sm">AutoLance</span>
             <div className="flex items-center gap-1 mt-0.5">
               <div className="w-2 h-2 rounded-none bg-neon-lime animate-blink" />
               <span className="text-[10px] text-neon-lime font-bold uppercase tracking-wider">LIVE</span>
@@ -69,15 +88,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         {/* User section */}
         <div className="p-4 border-t-2 border-border bg-surface-900">
-          <div className="brutal-panel p-3 flex items-center gap-3 cursor-pointer">
+          <div className="brutal-panel p-3 flex items-center gap-3">
             <div className="w-10 h-10 bg-neon-cyan border-2 border-surface-900 flex items-center justify-center text-surface-900 font-bold font-display text-lg shrink-0">
-              U
+              {avatarLetter}
             </div>
             <div className="flex-1 min-w-0">
-              <div className="text-sm font-bold font-display uppercase tracking-wide text-white truncate">User</div>
-              <div className="text-xs font-mono text-slate-400 truncate">PRO PLAN</div>
+              <div className="text-sm font-bold font-display uppercase tracking-wide text-white truncate">
+                {displayName}
+              </div>
+              <div className="text-xs font-mono text-slate-400 truncate">{tierLabel}</div>
             </div>
-            <button className="text-slate-500 hover:text-neon-pink transition-colors">
+            <button
+              onClick={handleLogout}
+              title="Sign out"
+              className="text-slate-500 hover:text-neon-pink transition-colors shrink-0"
+            >
               <LogOut size={18} strokeWidth={2.5} />
             </button>
           </div>

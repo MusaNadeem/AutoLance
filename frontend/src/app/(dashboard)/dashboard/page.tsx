@@ -5,7 +5,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import useSWR from "swr";
-import { fetcher } from "@/lib/api";
+import { fetcher, proposals as proposalsApi } from "@/lib/api";
 import {
   TrendingUp, Target, Zap, Trophy, ArrowUp, ArrowRight,
   Clock, Users, DollarSign, Activity, X, Shield, Sparkles,
@@ -16,10 +16,10 @@ import { ProposalPanel } from "@/components/jobs/ProposalPanel";
 import type { Job } from "@/types";
 
 const statsConfig = [
-  { key: "active_matches", label: "ACTIVE MATCHES", change: "+12", icon: Target, color: "text-neon-lime" },
-  { key: "win_rate", label: "WIN RATE", change: "+8%", icon: Trophy, color: "text-neon-cyan" },
-  { key: "proposals_sent", label: "PROPOSALS SENT", change: "+3", icon: TrendingUp, color: "text-neon-pink" },
-  { key: "revenue", label: "PIPELINE VALUE", change: "+$2.1K", icon: DollarSign, color: "text-neon-orange" },
+  { key: "total_jobs",       label: "ACTIVE JOBS",     icon: Target,    color: "text-neon-lime"   },
+  { key: "win_rate",         label: "WIN RATE",         icon: Trophy,    color: "text-neon-cyan"   },
+  { key: "sent",             label: "PROPOSALS SENT",   icon: TrendingUp,color: "text-neon-pink"   },
+  { key: "total_revenue",    label: "PIPELINE VALUE",   icon: DollarSign,color: "text-neon-orange" },
 ];
 
 const tierColors: Record<string, string> = {
@@ -57,54 +57,58 @@ function ScoreRing({ score }: { score: number }) {
   );
 }
 
+const STATUS_COLORS: Record<string, string> = {
+  drafted:   "text-slate-400 border-slate-500",
+  sent:      "text-neon-orange border-neon-orange",
+  viewed:    "text-neon-cyan border-neon-cyan",
+  replied:   "text-violet-400 border-violet-400",
+  interview: "text-amber-400 border-amber-400",
+  won:       "text-neon-lime border-neon-lime",
+  lost:      "text-red-400 border-red-400",
+};
+
+function ProposalPipelineWidget() {
+  const { data: list } = useSWR(
+    "/proposals-dashboard",
+    () => proposalsApi.list().then((r) => r.data),
+    { revalidateOnFocus: false }
+  );
+  const recent = (list ?? []).slice(0, 4) as Array<{
+    id: string; job_title: string | null; status: string; bid_amount: number | null;
+  }>;
+
+  return (
+    <div className="brutal-panel p-6">
+      <div className="flex items-center justify-between mb-6">
+        <h3 className="font-display font-bold text-white uppercase tracking-wide">Proposal Pipeline</h3>
+        <a href="/dashboard/proposals" className="text-neon-lime text-xs font-mono font-bold hover:underline">View all →</a>
+      </div>
+      <div className="space-y-3">
+        {recent.length === 0 ? (
+          <p className="text-slate-500 text-sm font-mono text-center py-4">
+            No proposals yet — use Apply + Track in the jobs feed.
+          </p>
+        ) : (
+          recent.map((p) => (
+            <div key={p.id} className="flex items-center gap-4 p-2">
+              <span className={`text-xs px-2 py-1 border-2 font-mono font-bold uppercase tracking-wider w-24 text-center shrink-0 ${STATUS_COLORS[p.status] ?? "text-slate-400 border-slate-500"}`}>
+                {p.status}
+              </span>
+              <span className="text-sm font-bold text-slate-300 flex-1 truncate">{p.job_title ?? "Untitled"}</span>
+              <span className="text-sm font-mono font-bold text-white shrink-0">
+                {p.bid_amount ? `$${Number(p.bid_amount).toLocaleString()}` : "—"}
+              </span>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function DashboardPage() {
   const router = useRouter();
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
-
-  const demoJobs: Job[] = [
-    {
-      id: "demo-1",
-      title: "FastAPI Backend — Real-Time Analytics",
-      budget_type: "hourly",
-      budget_min: 75,
-      budget_max: 110,
-      proposal_count: 6,
-      proposal_tier: "low",
-      required_skills: ["FastAPI", "PostgreSQL", "Redis"],
-      score: { overall: 0.85, relevance: 0.9, client_quality: 0.8, budget_fit: 0.85, competition: 0.8 },
-      description: "We need an experienced FastAPI developer to build real-time analytics endpoints with WebSocket support, PostgreSQL, and Redis caching.",
-    } as unknown as Job,
-    {
-      id: "demo-2",
-      title: "React Native Developer for FinTech App",
-      budget_type: "fixed",
-      budget_min: 2500,
-      budget_max: 4500,
-      proposal_count: 14,
-      proposal_tier: "medium",
-      required_skills: ["React Native", "TypeScript", "API Integration"],
-      score: { overall: 0.87, relevance: 0.85, client_quality: 0.9, budget_fit: 0.88, competition: 0.82 },
-      description: "Building a mobile banking app with React Native and TypeScript. Requires experience with financial APIs and biometric authentication.",
-    } as unknown as Job,
-    {
-      id: "demo-3",
-      title: "Python ML Engineer — Healthcare AI",
-      budget_type: "hourly",
-      budget_min: 90,
-      budget_max: 140,
-      proposal_count: 9,
-      proposal_tier: "low",
-      required_skills: ["Python", "ML", "NLP"],
-      score: { overall: 0.91, relevance: 0.95, client_quality: 0.88, budget_fit: 0.92, competition: 0.88 },
-      description: "Healthcare AI startup looking for a Python ML engineer to build NLP pipelines for clinical note analysis. HIPAA compliance experience preferred.",
-    } as unknown as Job,
-  ];
-
-  const demoAlertEvents = [
-    { id: "demo-a1", job_id: "demo-1", job_title: "Python ML Engineer — Healthcare AI", match_score: 91, sent_at: new Date(Date.now() - 2 * 60000).toISOString(), channel: "email", is_actioned: false },
-    { id: "demo-a2", job_id: "demo-2", job_title: "React Native Developer for FinTech App", match_score: 87, sent_at: new Date(Date.now() - 18 * 60000).toISOString(), channel: "slack", is_actioned: true },
-    { id: "demo-a3", job_id: "demo-3", job_title: "FastAPI Backend — Real-Time Analytics", match_score: 85, sent_at: new Date(Date.now() - 41 * 60000).toISOString(), channel: "email", is_actioned: true },
-  ];
 
   const timeAgo = (input: string | Date) => {
     const date = typeof input === "string" ? new Date(input) : input;
@@ -115,31 +119,28 @@ export default function DashboardPage() {
     return `${hours}h ago`;
   };
 
-  const { data: jobsData, isLoading: jobsLoading } = useSWR("/jobs?limit=5", fetcher, {
-    fallbackData: { jobs: demoJobs },
+  const { data: jobsData, isLoading: jobsLoading } = useSWR("/jobs?sort_by=score&limit=5", fetcher, {
+    revalidateOnFocus: false,
+    shouldRetryOnError: false,
   });
   const { data: statsData, isLoading: statsLoading } = useSWR("/proposals/analytics", fetcher, {
-    fallbackData: { active_matches: 47, win_rate: "31%", proposals_sent: 18, revenue: "$12.4K" }
+    revalidateOnFocus: false,
+    shouldRetryOnError: false,
   });
   const { data: alertEventsData } = useSWR("/alerts/events", fetcher, {
-    fallbackData: demoAlertEvents,
+    revalidateOnFocus: false,
+    shouldRetryOnError: false,
   });
 
-  const apiAlertEvents = Array.isArray(alertEventsData) ? alertEventsData : [];
-  const recentAlerts = apiAlertEvents.length ? apiAlertEvents : demoAlertEvents;
-  const apiJobs: Job[] = jobsData?.jobs || [];
-  const jobs: Job[] = apiJobs.length ? apiJobs : demoJobs;
+  const recentAlerts = Array.isArray(alertEventsData) ? alertEventsData : [];
+  const jobs: Job[] = jobsData?.jobs ?? [];
 
   const handleJobClick = (job: Job) => setSelectedJob(job);
 
   const handleAlertClick = (alert: any) => {
-    // Find matching job from the list or navigate to jobs page
     const match = jobs.find((j) => j.id === alert.job_id);
-    if (match) {
-      setSelectedJob(match);
-    } else {
-      router.push(`/dashboard/jobs?job=${alert.job_id}`);
-    }
+    if (match) setSelectedJob(match);
+    else router.push("/dashboard/jobs");
   };
 
   return (
@@ -169,7 +170,15 @@ export default function DashboardPage() {
                 <div>
                   <p className="text-slate-400 font-mono text-xs font-bold mb-2 tracking-widest">{stat.label}</p>
                   <p className="text-3xl font-display font-bold text-white group-hover:text-neon-lime transition-colors">
-                    {statsLoading ? "..." : statsData[stat.key]}
+                    {statsLoading ? "—" : (() => {
+                      const v = stat.key === "total_jobs"
+                        ? (jobsData?.total ?? 0)
+                        : (statsData as Record<string, unknown>)?.[stat.key];
+                      if (v == null) return "—";
+                      if (stat.key === "win_rate") return `${v}%`;
+                      if (stat.key === "total_revenue") return `$${Number(v).toLocaleString()}`;
+                      return String(v);
+                    })()}
                   </p>
                 </div>
                 <div className={`w-10 h-10 border-2 border-surface-600 bg-surface-900 flex items-center justify-center ${stat.color} group-hover:border-neon-lime transition-colors`}>
@@ -178,7 +187,7 @@ export default function DashboardPage() {
               </div>
               <div className="flex items-center gap-1 mt-4 text-neon-lime font-mono text-xs font-bold">
                 <ArrowUp size={14} strokeWidth={3} />
-                {stat.change} THIS WEEK
+                LIVE
               </div>
             </motion.div>
           ))}
@@ -196,11 +205,16 @@ export default function DashboardPage() {
           <div className="space-y-4">
             {jobsLoading ? (
               <div className="h-32 skeleton border-2 border-border" />
+            ) : jobs.length === 0 ? (
+              <div className="text-center py-8 space-y-3 border-2 border-dashed border-surface-5 rounded-xl">
+                <p className="text-slate-400 text-sm font-mono">No jobs yet — trigger a scrape to get started.</p>
+                <a href="/dashboard/jobs" className="text-neon-lime text-xs font-mono font-bold hover:underline">Go to Job Feed →</a>
+              </div>
             ) : (
               jobs.slice(0, 3).map((job: any, i: number) => {
                 const score = typeof job.score === "number"
                   ? job.score
-                  : Math.round(((job.score as { overall?: number | null })?.overall ?? 0) * 100) || Math.floor(Math.random() * 20 + 80);
+                  : Math.round(((job.score as { overall?: number | null })?.overall ?? 0) * 100);
                 const isSelected = selectedJob?.id === job.id;
 
                 return (
@@ -282,45 +296,31 @@ export default function DashboardPage() {
               Recent Alerts
             </h3>
             <div className="space-y-4">
-              {recentAlerts.map((alert: any) => (
-                <div
-                  key={alert.id}
-                  className="flex items-center gap-4 p-3 border-2 border-transparent hover:border-neon-pink bg-surface-900 transition-colors cursor-pointer"
-                  onClick={() => handleAlertClick(alert)}
-                >
-                  <div className="w-12 h-12 bg-surface-800 border-2 border-border flex items-center justify-center shrink-0">
-                    <span className="text-neon-pink font-bold font-mono text-lg">{alert.match_score ?? "—"}</span>
+              {recentAlerts.length === 0 ? (
+                <p className="text-slate-500 text-sm font-mono text-center py-4">No alerts yet — high-scoring jobs will appear here.</p>
+              ) : (
+                recentAlerts.slice(0, 4).map((alert: any) => (
+                  <div
+                    key={alert.id}
+                    className="flex items-center gap-4 p-3 border-2 border-transparent hover:border-neon-pink bg-surface-900 transition-colors cursor-pointer"
+                    onClick={() => handleAlertClick(alert)}
+                  >
+                    <div className="w-12 h-12 bg-surface-800 border-2 border-border flex items-center justify-center shrink-0">
+                      <span className="text-neon-pink font-bold font-mono text-lg">{alert.match_score ?? "—"}</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold text-white truncate">{alert.job_title || "Untitled job"}</p>
+                      <p className="text-xs font-mono text-slate-500 uppercase mt-1">{alert.sent_at ? timeAgo(alert.sent_at) : ""}</p>
+                    </div>
+                    <ArrowRight size={18} className="text-slate-500 shrink-0" strokeWidth={2.5} />
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-white truncate">{alert.job_title || `Job ${String(alert.job_id || "").slice(0, 8)}`}</p>
-                    <p className="text-xs font-mono text-slate-500 uppercase mt-1">{alert.sent_at ? timeAgo(alert.sent_at) : ""}</p>
-                  </div>
-                  <ArrowRight size={18} className="text-slate-500 shrink-0" strokeWidth={2.5} />
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
 
-          {/* Proposal pipeline */}
-          <div className="brutal-panel p-6">
-            <h3 className="font-display font-bold text-white mb-6 uppercase tracking-wide">Proposal Pipeline</h3>
-            <div className="space-y-4">
-              {[
-                { status: "Interview", label: "Cloud Architect Role", value: "$5,500", color: "text-neon-cyan border-neon-cyan" },
-                { status: "Replied", label: "React Dashboard Project", value: "$2,200", color: "text-neon-pink border-neon-pink" },
-                { status: "Sent", label: "FastAPI Microservices", value: "$3,800", color: "text-neon-orange border-neon-orange" },
-                { status: "Won 🎉", label: "Python Data Pipeline", value: "$4,000", color: "text-neon-lime border-neon-lime" },
-              ].map((item) => (
-                <div key={item.label} className="flex items-center gap-4 p-2">
-                  <span className={`text-xs px-2 py-1 border-2 font-mono font-bold uppercase tracking-wider w-24 text-center shrink-0 ${item.color}`}>
-                    {item.status}
-                  </span>
-                  <span className="text-sm font-bold text-slate-300 flex-1 truncate">{item.label}</span>
-                  <span className="text-sm font-mono font-bold text-white shrink-0">{item.value}</span>
-                </div>
-              ))}
-            </div>
-          </div>
+          {/* Proposal pipeline — real data */}
+          <ProposalPipelineWidget />
         </div>
       </div>
 
