@@ -202,8 +202,8 @@ class BrightDataClient:
 
             jobs.append({
                 "upwork_job_id":   node.get("id", ""),
-                "title":           node.get("title", ""),
-                "description":     (node.get("description") or "")[:2000],
+                "title":           self._strip_html(node.get("title", "")),
+                "description":     self._strip_html(node.get("description") or "")[:2000],
                 "url":             f"https://www.upwork.com/jobs/~0{cipher}" if cipher else "",
                 "budget_type":     budget_type,
                 "budget_min":      float(budget_amt) if budget_amt and budget_type == "fixed" else None,
@@ -403,8 +403,8 @@ class BrightDataClient:
 
             uid       = self._get_str(block, "uid")
             cipher    = (self._get_str(block, "ciphertext") or "").lstrip("~").lstrip("0")
-            title     = self._get_str(block, "title") or ""
-            desc      = self._get_str(block, "description") or ""
+            title     = self._strip_html(self._get_str(block, "title") or "")
+            desc      = self._strip_html(self._get_str(block, "description") or "")
             pub_date  = self._get_str(block, "publishedOn")
             jtype     = self._get_field(block, "type", lookup)
             tier      = self._get_field(block, "tierText", lookup)
@@ -524,6 +524,18 @@ class BrightDataClient:
             return raw.encode("raw_unicode_escape").decode("unicode_escape")
         except Exception:
             return raw
+
+    @staticmethod
+    def _strip_html(text: str) -> str:
+        """Remove Upwork's search-highlight markup and any other HTML tags."""
+        if not text:
+            return text
+        # Drop tags, collapse whitespace, decode common entities
+        clean = re.sub(r"<[^>]+>", "", text)
+        clean = (clean.replace("&amp;", "&").replace("&lt;", "<")
+                      .replace("&gt;", ">").replace("&quot;", '"')
+                      .replace("&#39;", "'").replace("&nbsp;", " "))
+        return re.sub(r"\s+", " ", clean).strip()
 
     def _get_field(self, block: str, key: str, lookup: dict):
         """Extract a field that may be a literal string or variable reference."""

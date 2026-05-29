@@ -61,7 +61,11 @@ async def _async_score_all():
                     )
                     # Check alerts
                     await _check_and_dispatch_alert(db, user, job, match)
+                    # Commit per-job so scores appear incrementally and a single
+                    # failure doesn't roll back the whole batch.
+                    await db.commit()
                 except Exception as e:
+                    await db.rollback()
                     logger.error(
                         "Scoring failed",
                         user_id=str(user.id),
