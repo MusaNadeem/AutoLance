@@ -46,8 +46,10 @@ class Settings(BaseSettings):
     SUPABASE_STORAGE_BUCKET: str = "cv-documents"
 
     # ── Claude AI ────────────────────────────────────────
-    ANTHROPIC_API_KEY: str
-    CLAUDE_MODEL: str = "claude-sonnet-4-6"
+    ANTHROPIC_API_KEY: str = ""       # kept for backward compat — not used when AIML_API_KEY is set
+    AIML_API_KEY: str = ""            # AI/ML API key (aimlapi.com) — takes priority when set
+    AIML_BASE_URL: str = "https://api.aimlapi.com/v1"
+    CLAUDE_MODEL: str = "anthropic/claude-sonnet-4-5"   # model name as used by AI/ML API
     CLAUDE_MAX_TOKENS: int = 4096
     CLAUDE_TEMPERATURE: float = 0.1
 
