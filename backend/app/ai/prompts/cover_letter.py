@@ -16,16 +16,23 @@ def build_cover_letter_prompt(
     budget = job.get('budget_type', 'Unknown')
     
     req_skills = job.get('required_skills', '')
-    required_skills = ', '.join(req_skills) if isinstance(req_skills, list) else req_skills
+    if isinstance(req_skills, list):
+        req_skills = [s.get('name', str(s)) if isinstance(s, dict) else str(s) for s in req_skills]
+    required_skills = ', '.join(req_skills) if isinstance(req_skills, list) else str(req_skills)
     
     full_name = profile.get('headline', 'Freelancer') # Will be supplemented by headline
     prof_skills = profile.get('skills', '')
-    skills = ', '.join(prof_skills) if isinstance(prof_skills, list) else prof_skills
+    if isinstance(prof_skills, list):
+        prof_skills = [s.get('name', str(s)) if isinstance(s, dict) else str(s) for s in prof_skills]
+    skills = ', '.join(prof_skills) if isinstance(prof_skills, list) else str(prof_skills)
+    
     experience_level = profile.get('experience_level', '')
     niche = profile.get('niche', '')
     
     prof_spec = profile.get('specializations', '')
-    summary = ', '.join(prof_spec) if isinstance(prof_spec, list) else prof_spec
+    if isinstance(prof_spec, list):
+        prof_spec = [s.get('name', str(s)) if isinstance(s, dict) else str(s) for s in prof_spec]
+    summary = ', '.join(prof_spec) if isinstance(prof_spec, list) else str(prof_spec)
     
     custom_instructions_block = f"\nAdditional Instructions:\n{custom_instructions}\n" if custom_instructions else ""
 
