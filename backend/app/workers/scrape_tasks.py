@@ -28,7 +28,7 @@ def run_scheduled_scrape(self):
     Triggers Bright Data collection, waits for results, ingests jobs.
     """
     logger.info("Starting scheduled scrape run")
-    asyncio.get_event_loop().run_until_complete(_async_scrape(self))
+    asyncio.run(_async_scrape(self))
 
 
 async def _async_scrape(task):
@@ -48,7 +48,7 @@ async def _async_scrape(task):
 
         try:
             # Scrape via Bright Data Unlocker API + Upwork GraphQL (sync, run in executor)
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             raw_jobs = await loop.run_in_executor(None, bright_data.scrape_jobs)
             logger.info(f"Got {len(raw_jobs)} raw jobs from Bright Data")
 
@@ -86,7 +86,7 @@ def manual_scrape(keywords: list[str] = None):
     `keywords` is a list of plain search terms derived from the user's profile,
     or None to use the hardcoded default keyword set.
     """
-    asyncio.get_event_loop().run_until_complete(_async_manual_scrape(keywords))
+    asyncio.run(_async_manual_scrape(keywords))
 
 
 async def _async_manual_scrape(keywords):
@@ -106,7 +106,7 @@ async def _async_manual_scrape(keywords):
         try:
             # Scrape via Bright Data Unlocker API + __NUXT__ parsing.
             # Keywords come from the triggering user's profile skills/niche.
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             raw_jobs = await loop.run_in_executor(
                 None, lambda: bright_data.scrape_jobs(keywords)
             )

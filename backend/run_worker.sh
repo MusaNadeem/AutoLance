@@ -8,11 +8,12 @@ set -a
 source ../.env
 set +a
 
-export DATABASE_URL="postgresql+asyncpg://autolance:secret@127.0.0.1:5433/autolance"
+# Override Docker service hostnames with localhost for local dev
+export DATABASE_URL="postgresql+asyncpg://freelanceradar:secret@127.0.0.1:5432/freelanceradar"
 export REDIS_URL="redis://127.0.0.1:6379/0"
 export CELERY_BROKER_URL="redis://127.0.0.1:6379/0"
 export CELERY_RESULT_BACKEND="redis://127.0.0.1:6379/1"
 export UPLOAD_DIR="/tmp/autolance_uploads"
 
-exec linux_venv/bin/celery -A app.workers.celery_app worker \
+exec venv/bin/celery -A app.workers.celery_app worker \
     --concurrency=2 -Q default,scraping,matching,alerts --loglevel=info

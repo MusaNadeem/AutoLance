@@ -9,16 +9,16 @@ services:
     container_name: fr_postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-autolance}
+      POSTGRES_USER: ${POSTGRES_USER:-freelanceradar}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-secret}
-      POSTGRES_DB: ${POSTGRES_DB:-autolance}
+      POSTGRES_DB: ${POSTGRES_DB:-freelanceradar}
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
     ports:
       - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-autolance}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-freelanceradar}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -52,8 +52,11 @@ services:
     restart: unless-stopped
     env_file: .env
     environment:
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-autolance}:${POSTGRES_PASSWORD:-secret}@postgres:5432/${POSTGRES_DB:-autolance}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-freelanceradar}:${POSTGRES_PASSWORD:-secret}@postgres:5432/${POSTGRES_DB:-freelanceradar}
       REDIS_URL: redis://redis:6379/0
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
     volumes:
       - ./backend:/app
       - cv_uploads:/app/uploads
@@ -82,8 +85,11 @@ services:
     command: celery -A app.workers.celery_app worker --loglevel=info --concurrency=4 -Q default,scraping,matching,alerts
     env_file: .env
     environment:
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-autolance}:${POSTGRES_PASSWORD:-secret}@postgres:5432/${POSTGRES_DB:-autolance}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-freelanceradar}:${POSTGRES_PASSWORD:-secret}@postgres:5432/${POSTGRES_DB:-freelanceradar}
       REDIS_URL: redis://redis:6379/0
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
     volumes:
       - ./backend:/app
       - cv_uploads:/app/uploads
@@ -105,8 +111,11 @@ services:
     command: celery -A app.workers.celery_app beat --loglevel=info --scheduler celery.beat:PersistentScheduler
     env_file: .env
     environment:
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-autolance}:${POSTGRES_PASSWORD:-secret}@postgres:5432/${POSTGRES_DB:-autolance}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-freelanceradar}:${POSTGRES_PASSWORD:-secret}@postgres:5432/${POSTGRES_DB:-freelanceradar}
       REDIS_URL: redis://redis:6379/0
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
     volumes:
       - ./backend:/app
       - celerybeat_data:/app/celerybeat

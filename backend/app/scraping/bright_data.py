@@ -157,7 +157,7 @@ class BrightDataClient:
         cookie_str = f"visitor_gql_token={token}"
         r = cffi_requests.post(
             "https://www.upwork.com/api/graphql/v1",
-            impersonate="chrome131",
+            impersonate="chrome124",
             headers={
                 "Authorization": f"Bearer {token}",
                 "Content-Type": "application/json",

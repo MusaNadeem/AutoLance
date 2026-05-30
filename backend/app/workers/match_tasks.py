@@ -22,7 +22,7 @@ logger = get_task_logger(__name__)
 @celery_app.task(name="app.workers.match_tasks.score_new_jobs_for_all_users")
 def score_new_jobs_for_all_users():
     """Score all new/unscored jobs for every active user."""
-    asyncio.get_event_loop().run_until_complete(_async_score_all())
+    asyncio.run(_async_score_all())
 
 async def _async_score_all():
     async with get_db_context() as db:
