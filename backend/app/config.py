@@ -124,6 +124,15 @@ class Settings(BaseSettings):
     SCORE_WEIGHT_COMPETITION:     float = 0.20
     SCORE_WEIGHT_CLIENT_QUALITY:  float = 0.15
 
+    # Aliases used by scoring.py and tests
+    @property
+    def SCORE_WEIGHT_RELEVANCE(self) -> float:
+        return self.SCORE_WEIGHT_SKILL
+
+    @property
+    def SCORE_WEIGHT_BUDGET(self) -> float:
+        return self.SCORE_WEIGHT_ROI
+
     @model_validator(mode="after")
     def _validate_score_weights(self) -> "Settings":
         total = (
