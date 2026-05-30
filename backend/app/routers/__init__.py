@@ -149,14 +149,31 @@ async def generate_cover_letter(
 ):
     """Generate a personalized cover letter for a job."""
     await _check_cover_letter_limit(current_user, db)
-    letter = await cover_letter_service.generate(
-        db=db,
-        user_id=current_user.id,
-        job_id=uuid.UUID(body.job_id),
-        style=body.style,
-        tone=body.tone,
-        custom_instructions=body.custom_instructions,
-    )
+    try:
+        letter = await cover_letter_service.generate(
+            db=db,
+            user_id=current_user.id,
+            job_id=uuid.UUID(body.job_id),
+            style=body.style,
+            tone=body.tone,
+            custom_instructions=body.custom_instructions,
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        msg = str(e).lower()
+        # Surface AI-provider outages as a clean 503 with an actionable message
+        if any(s in msg for s in (
+            "insufficient", "out of funds", "credit", "quota",
+            "402", "403", "permissiondenied", "rate limit", "rate_limit",
+        )):
+            raise HTTPException(
+                status_code=503,
+                detail="AI service is temporarily unavailable (provider credits/quota). "
+                       "Please try again shortly.",
+            )
+        raise HTTPException(status_code=500, detail=f"Cover letter generation failed: {str(e)[:200]}")
+
     return {
         "id": str(letter.id),
         "content": letter.content,
