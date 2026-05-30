@@ -65,13 +65,33 @@ async def _async_score_all():
                     # failure doesn't roll back the whole batch.
                     await db.commit()
                 except Exception as e:
-                    await db.rollback()
+                    # Roll back defensively — guard it so a rollback failure
+                    # (e.g. a broken async connection) doesn't mask the real error.
+                    try:
+                        await db.rollback()
+                    except Exception:
+                        pass
+                    msg = str(e)
                     logger.error(
                         "Scoring failed",
                         user_id=str(user.id),
                         job_id=str(job.id),
-                        error=str(e),
+                        error=msg[:300],
                     )
+                    # If the AI provider is unreachable / out of credits / rate-limited,
+                    # every remaining job will fail the same way. Stop early instead of
+                    # hammering a dead endpoint for the whole batch.
+                    low = msg.lower()
+                    if any(s in low for s in (
+                        "insufficient", "run out of funds", "out of funds",
+                        "402", "403", "permissiondenied", "quota", "credit",
+                    )):
+                        logger.error(
+                            "AI provider unavailable — aborting scoring batch. "
+                            "Check AI/ML API credits (aimlapi.com/app/billing) "
+                            "or set a valid ANTHROPIC_API_KEY."
+                        )
+                        return
 
 
 async def _check_and_dispatch_alert(db, user: User, job: Job, match: MatchScore):

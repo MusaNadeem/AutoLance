@@ -53,7 +53,16 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 
 @asynccontextmanager
 async def get_db_context() -> AsyncGenerator[AsyncSession, None]:
-    """Context manager for use outside request lifecycle (workers, tasks)."""
+    """
+    Context manager for use outside the request lifecycle (Celery workers, tasks).
+
+    Celery tasks each call ``asyncio.run()`` which spins up a fresh event loop
+    and closes it when the coroutine finishes. The module-level async ``engine``
+    can retain asyncpg connection state bound to a previous loop, which makes the
+    NEXT task fail with ``MissingGreenlet``. Disposing the engine at the end of
+    every worker DB session guarantees no loop-bound resources survive into the
+    next task's event loop. (NullPool makes this cheap — no pool to tear down.)
+    """
     async with AsyncSessionLocal() as session:
         try:
             yield session
@@ -63,6 +72,8 @@ async def get_db_context() -> AsyncGenerator[AsyncSession, None]:
             raise
         finally:
             await session.close()
+    # Release any loop-bound engine resources before this event loop closes.
+    await engine.dispose()
 
 
 async def create_tables():
