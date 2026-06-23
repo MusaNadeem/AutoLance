@@ -116,3 +116,29 @@ graphify-out/
 .openclaude-profile.json
 # Linux venv (backend uses linux_venv/, tracked only by name)
 backend/linux_venv/
+
+# ───────────────────────────────────────────
+# Secrets & Keys (NEVER commit)
+# ───────────────────────────────────────────
+*.pem
+*.key
+autolance-rg_key.pem
+
+# ───────────────────────────────────────────
+# Unrelated / Internal (kept local, not for the repo)
+# ───────────────────────────────────────────
+# Claude Code skill folders (dangling gitlinks, not part of the app)
+skills/
+# AI assistant instructions (internal tooling)
+CLAUDE.md
+# Old planning doc (internal)
+FreelanceIQ_Roadmap.docx
+# Local dev launcher scripts (machine-specific paths + inline creds)
+backend/run_dev.sh
+backend/run_worker.sh
+# Exploratory debug scripts (not the pytest suite)
+backend/scripts/test_ai.py
+backend/scripts/test_graphql.py
+backend/scripts/test_scraping.py
+# Redundant one-off QA script (qa_full.py is the maintained one)
+backend/qa_phase4.py

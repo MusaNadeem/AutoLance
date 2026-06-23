@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;800&family=Space+Grotesk:wght@400;500;600;700;800;900&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --lime:#ccff00; --cyan:#00e5ff; --pink:#ff2d78; --orange:#ff6b00;
+    --dark:#070707; --card:#101010; --border:#1f1f1f; --gray:#888;
+  }
+
+  body { width:1200px; height:1500px; overflow:hidden;
+    background:var(--dark); font-family:'Space Grotesk',sans-serif; color:#f2f2f2; }
+
+  .poster { position:relative; width:1200px; height:1500px; display:flex; flex-direction:column; }
+
+  .bg-grid { position:absolute; inset:0;
+    background-image:linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),
+      linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);
+    background-size:48px 48px; }
+  .glow { position:absolute; border-radius:50%; filter:blur(150px); pointer-events:none; }
+
+  /* ── HEADER ── */
+  .header { position:relative; z-index:2; padding:48px 64px 0;
+    display:flex; align-items:flex-start; justify-content:space-between; }
+  .logo-row { display:flex; align-items:center; gap:16px; }
+  .logo-box { width:60px; height:60px; background:var(--lime); display:flex;
+    align-items:center; justify-content:center; font-weight:900; font-size:24px; color:#000; }
+  .logo-name { font-size:34px; font-weight:900; letter-spacing:2px; text-transform:uppercase; }
+  .logo-live { display:flex; align-items:center; gap:7px; margin-top:6px;
+    font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--lime); letter-spacing:3px; }
+  .live-dot { width:8px; height:8px; background:var(--lime); }
+  .hack-tag { text-align:right; font-family:'JetBrains Mono',monospace; }
+  .hack-tag .top { font-size:13px; color:var(--lime); font-weight:700; letter-spacing:2px; }
+  .hack-tag .mid { font-size:11px; color:#aaa; letter-spacing:1px; margin-top:4px; }
+  .hack-tag .bot { font-size:11px; color:#555; letter-spacing:1px; margin-top:2px; }
+
+  /* ── HERO ── */
+  .hero { position:relative; z-index:2; padding:44px 64px 0; }
+  .hero-tag { font-family:'JetBrains Mono',monospace; font-size:14px; font-weight:700;
+    color:var(--lime); letter-spacing:4px; text-transform:uppercase; margin-bottom:18px; }
+  .hero h1 { font-size:120px; font-weight:900; line-height:.88; letter-spacing:-4px; text-transform:uppercase; }
+  .hero h1 .lime { color:var(--lime); }
+  .hero-sub { font-size:26px; color:#999; line-height:1.5; max-width:760px; margin-top:28px; font-weight:400; }
+  .hero-sub strong { color:#ddd; font-weight:600; }
+
+  /* ── PILLS ── */
+  .pills { display:flex; gap:14px; flex-wrap:wrap; margin-top:32px; }
+  .pill { display:inline-flex; align-items:center; gap:9px;
+    font-size:16px; font-weight:700; letter-spacing:1px; padding:11px 22px; border:2px solid;
+    font-family:'JetBrains Mono',monospace; }
+  .p-lime{color:var(--lime);border-color:var(--lime);background:rgba(204,255,0,.07);}
+  .p-cyan{color:var(--cyan);border-color:var(--cyan);background:rgba(0,229,255,.07);}
+  .p-orange{color:var(--orange);border-color:var(--orange);background:rgba(255,107,0,.07);}
+  .p-pink{color:var(--pink);border-color:var(--pink);background:rgba(255,45,120,.07);}
+
+  /* ── FLOW (3 STEP) ── */
+  .flow { position:relative; z-index:2; padding:48px 64px 0; display:flex; gap:20px; }
+  .step { flex:1; background:var(--card); border:2px solid var(--border); padding:28px 26px;
+    position:relative; overflow:hidden; }
+  .step:nth-child(1){border-top:4px solid var(--lime);}
+  .step:nth-child(3){border-top:4px solid var(--cyan);}
+  .step:nth-child(5){border-top:4px solid var(--pink);}
+  .step-num { position:absolute; right:18px; bottom:6px; font-family:'JetBrains Mono',monospace;
+    font-size:78px; font-weight:800; opacity:.06; line-height:1; }
+  .step-icon { font-size:42px; margin-bottom:16px; }
+  .step-title { font-size:24px; font-weight:800; margin-bottom:12px; }
+  .step-desc { font-size:16px; color:#999; line-height:1.55; }
+  .arrow { display:flex; align-items:center; color:var(--border); font-size:36px; }
+
+  /* ── STATS BAR ── */
+  .stats { position:relative; z-index:2; margin:48px 64px 0;
+    background:var(--card); border:2px solid var(--lime); padding:32px 40px;
+    display:flex; align-items:center; justify-content:space-between;
+    box-shadow:0 0 60px rgba(204,255,0,.1); }
+  .stat { text-align:center; }
+  .stat-num { font-size:54px; font-weight:900; font-family:'JetBrains Mono',monospace; line-height:1; }
+  .stat-label { font-size:14px; color:var(--gray); letter-spacing:2px; margin-top:8px;
+    font-family:'JetBrains Mono',monospace; text-transform:uppercase; }
+  .stat-div { width:2px; height:64px; background:var(--border); }
+
+  /* ── TECH STACK ── */
+  .tech { position:relative; z-index:2; padding:44px 64px 0; }
+  .tech-label { font-family:'JetBrains Mono',monospace; font-size:14px; color:var(--gray);
+    letter-spacing:3px; text-transform:uppercase; margin-bottom:18px; }
+  .tech-grid { display:flex; gap:12px; flex-wrap:wrap; }
+  .tech-item { display:flex; align-items:center; gap:10px; background:var(--card);
+    border:1.5px solid var(--border); padding:12px 18px; font-size:17px; font-weight:600; }
+  .tech-item .ic { font-size:20px; }
+
+  /* ── FOOTER ── */
+  .footer { position:relative; z-index:2; margin-top:auto; padding:36px 64px 44px;
+    border-top:2px solid var(--border); display:flex; align-items:center; justify-content:space-between; }
+  .team { display:flex; align-items:center; gap:18px; }
+  .team-box { width:64px; height:64px; background:var(--lime); display:flex; align-items:center;
+    justify-content:center; font-size:30px; }
+  .team-name { font-size:14px; color:var(--gray); font-family:'JetBrains Mono',monospace;
+    letter-spacing:2px; }
+  .team-members { font-size:24px; font-weight:800; margin-top:4px; }
+  .footer-right { text-align:right; }
+  .gh { font-family:'JetBrains Mono',monospace; font-size:18px; color:var(--lime); }
+  .gh-label { font-size:13px; color:var(--gray); font-family:'JetBrains Mono',monospace;
+    letter-spacing:2px; margin-bottom:6px; }
+</style>
+</head>
+<body>
+<div class="poster">
+  <div class="bg-grid"></div>
+  <div class="glow" style="width:600px;height:600px;background:var(--lime);top:-150px;right:-150px;opacity:.10"></div>
+  <div class="glow" style="width:500px;height:500px;background:var(--cyan);bottom:200px;left:-200px;opacity:.06"></div>
+  <div class="glow" style="width:400px;height:400px;background:var(--pink);top:700px;right:-100px;opacity:.04"></div>
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="logo-row">
+      <div class="logo-box">AL</div>
+      <div>
+        <div class="logo-name">AutoLance</div>
+        <div class="logo-live"><div class="live-dot"></div>LIVE</div>
+      </div>
+    </div>
+    <div class="hack-tag">
+      <div class="top">🏆 WEB DATA UNLOCKED</div>
+      <div class="mid">Bright Data Hackathon 2026</div>
+      <div class="bot">GTM Intelligence Track</div>
+    </div>
+  </div>
+
+  <!-- HERO -->
+  <div class="hero">
+    <div class="hero-tag">▸ AI-Powered Upwork Intelligence</div>
+    <h1>Freelance<br><span class="lime">Smarter.</span></h1>
+    <p class="hero-sub">An AI agent that <strong>scrapes live Upwork jobs</strong>, <strong>scores them against your CV</strong>, and <strong>writes personalized proposals</strong> — so you apply where it actually matters.</p>
+    <div class="pills">
+      <span class="pill p-lime">🌐 Bright Data</span>
+      <span class="pill p-cyan">🤖 AI / ML API</span>
+      <span class="pill p-orange">⚡ FastAPI</span>
+      <span class="pill p-pink">▲ Next.js 15</span>
+    </div>
+  </div>
+
+  <!-- FLOW -->
+  <div class="flow">
+    <div class="step">
+      <div class="step-num">01</div>
+      <div class="step-icon">📄</div>
+      <div class="step-title">Scan CV</div>
+      <div class="step-desc">AI reads your resume and extracts your niche, skills &amp; target rates.</div>
+    </div>
+    <div class="arrow">→</div>
+    <div class="step">
+      <div class="step-num">02</div>
+      <div class="step-icon">🌐</div>
+      <div class="step-title">Scrape &amp; Score</div>
+      <div class="step-desc">Bright Data pulls live Upwork jobs. AI scores each across 10 signals.</div>
+    </div>
+    <div class="arrow">→</div>
+    <div class="step">
+      <div class="step-num">03</div>
+      <div class="step-icon">✍️</div>
+      <div class="step-title">Write Proposal</div>
+      <div class="step-desc">One-click tone-aware cover letters. Track every application.</div>
+    </div>
+  </div>
+
+  <!-- STATS -->
+  <div class="stats">
+    <div class="stat"><div class="stat-num" style="color:var(--lime)">10</div><div class="stat-label">AI Signals</div></div>
+    <div class="stat-div"></div>
+    <div class="stat"><div class="stat-num" style="color:var(--cyan)">23+</div><div class="stat-label">Jobs / Scrape</div></div>
+    <div class="stat-div"></div>
+    <div class="stat"><div class="stat-num" style="color:var(--pink)">3</div><div class="stat-label">Proposal Tones</div></div>
+    <div class="stat-div"></div>
+    <div class="stat"><div class="stat-num" style="color:var(--orange)">8s</div><div class="stat-label">CV Parse</div></div>
+  </div>
+
+  <!-- TECH -->
+  <div class="tech">
+    <div class="tech-label">◈ Built With</div>
+    <div class="tech-grid">
+      <div class="tech-item"><span class="ic">🌐</span>Bright Data Web Unlocker</div>
+      <div class="tech-item"><span class="ic">🤖</span>Claude / DeepSeek (AI/ML API)</div>
+      <div class="tech-item"><span class="ic">⚡</span>FastAPI</div>
+      <div class="tech-item"><span class="ic">🗄️</span>PostgreSQL + pgvector</div>
+      <div class="tech-item"><span class="ic">🔄</span>Celery + Redis</div>
+      <div class="tech-item"><span class="ic">▲</span>Next.js 15 · React 19</div>
+      <div class="tech-item"><span class="ic">🐳</span>Docker · Azure</div>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <div class="footer">
+    <div class="team">
+      <div class="team-box">👥</div>
+      <div>
+        <div class="team-name">TEAM MUTEX</div>
+        <div class="team-members">Musa Nadeem &nbsp;·&nbsp; Omer Irfan</div>
+      </div>
+    </div>
+    <div class="footer-right">
+      <div class="gh-label">SOURCE</div>
+      <div class="gh">github.com/MusaNadeem/AutoLance</div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

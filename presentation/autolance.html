@@ -1,0 +1,1050 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AutoLance — Hackathon Presentation</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;800&family=Space+Grotesk:wght@400;500;600;700;800&display=swap');
+
+  :root {
+    --lime:   #ccff00;
+    --cyan:   #00e5ff;
+    --pink:   #ff2d78;
+    --orange: #ff6b00;
+    --dark:   #080808;
+    --card:   #111111;
+    --border: #222222;
+    --gray:   #888888;
+    --white:  #f5f5f5;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--dark);
+    font-family: 'Space Grotesk', sans-serif;
+    color: var(--white);
+  }
+
+  /* ── PRINT: each slide = one A4 landscape page ── */
+  @page {
+    size: A4 landscape;
+    margin: 0;
+  }
+  @media print {
+    body { background: var(--dark); }
+    .slide { page-break-after: always; page-break-inside: avoid; }
+    .slide:last-child { page-break-after: avoid; }
+  }
+
+  .slide {
+    width: 297mm;
+    height: 210mm;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    background: var(--dark);
+  }
+
+  /* ── SHARED ELEMENTS ── */
+  .slide-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 32px;
+    border-bottom: 2px solid var(--border);
+    background: #0d0d0d;
+    flex-shrink: 0;
+  }
+  .logo-mark {
+    display: flex; align-items: center; gap: 10px;
+  }
+  .logo-box {
+    width: 28px; height: 28px;
+    background: var(--lime);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-family: 'JetBrains Mono', monospace;
+    color: #000; font-size: 14px;
+  }
+  .logo-text {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 800; font-size: 16px; letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  .slide-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; color: var(--gray);
+    letter-spacing: 2px;
+  }
+  .live-dot {
+    display: flex; align-items: center; gap: 6px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; color: var(--lime); letter-spacing: 2px;
+  }
+  .dot { width: 6px; height: 6px; border-radius: 0; background: var(--lime); }
+
+  .slide-body { flex: 1; display: flex; overflow: hidden; }
+
+  /* ── TYPOGRAPHY ── */
+  .section-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; font-weight: 700;
+    color: var(--lime); letter-spacing: 3px; text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+  h1 { font-size: 52px; font-weight: 800; line-height: 1; letter-spacing: -1px; }
+  h2 { font-size: 34px; font-weight: 800; line-height: 1.1; letter-spacing: -0.5px; }
+  h3 { font-size: 20px; font-weight: 700; }
+  h4 { font-size: 15px; font-weight: 700; }
+  .mono { font-family: 'JetBrains Mono', monospace; }
+
+  /* ── CARDS / BOXES ── */
+  .card {
+    background: var(--card);
+    border: 1.5px solid var(--border);
+    padding: 18px;
+  }
+  .card-lime  { border-color: var(--lime); }
+  .card-cyan  { border-color: var(--cyan); }
+  .card-pink  { border-color: var(--pink); }
+
+  .badge {
+    display: inline-flex; align-items: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; font-weight: 700; letter-spacing: 1px;
+    padding: 4px 10px; border: 1.5px solid; text-transform: uppercase;
+  }
+  .badge-lime  { color: var(--lime);   border-color: var(--lime);   background: rgba(204,255,0,.08); }
+  .badge-cyan  { color: var(--cyan);   border-color: var(--cyan);   background: rgba(0,229,255,.08); }
+  .badge-pink  { color: var(--pink);   border-color: var(--pink);   background: rgba(255,45,120,.08); }
+  .badge-orange{ color: var(--orange); border-color: var(--orange); background: rgba(255,107,0,.08); }
+
+  /* accent lines */
+  .accent-left { border-left: 4px solid var(--lime); padding-left: 14px; }
+
+  /* ── BG DECORATIONS ── */
+  .bg-grid {
+    position: absolute; inset: 0; pointer-events: none;
+    background-image:
+      linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px);
+    background-size: 40px 40px;
+  }
+  .bg-glow {
+    position: absolute; border-radius: 50%; filter: blur(80px); pointer-events: none; opacity: .25;
+  }
+
+  /* ─────────────────────────────────── SLIDE 1: TITLE ─── */
+  #s1 { background: var(--dark); }
+  #s1 .slide-body { padding: 0 56px; align-items: center; gap: 0; }
+  #s1 .left { flex: 1.2; display: flex; flex-direction: column; justify-content: center; }
+  #s1 .right { flex: 1; display: flex; align-items: center; justify-content: center; }
+  #s1 h1 { font-size: 72px; line-height: .95; }
+  #s1 h1 span { color: var(--lime); display: block; }
+  #s1 .tagline {
+    font-size: 16px; color: #aaa; max-width: 380px; line-height: 1.6; margin-top: 18px;
+  }
+  #s1 .pills { display: flex; gap: 8px; margin-top: 24px; flex-wrap: wrap; }
+  #s1 .screen {
+    width: 320px; height: 190px; background: #0d0d0d; border: 1.5px solid var(--lime);
+    display: flex; flex-direction: column; gap: 8px; padding: 16px;
+    box-shadow: 0 0 60px rgba(204,255,0,.2);
+  }
+  #s1 .screen-bar { height: 6px; background: var(--lime); border-radius: 0; }
+  #s1 .screen-row { display: flex; gap: 8px; }
+  #s1 .screen-chip {
+    height: 26px; background: #1a1a1a; border: 1px solid #2a2a2a;
+    border-radius: 0; flex: 1; display: flex; align-items: center; padding: 0 8px;
+    font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #666;
+  }
+  #s1 .screen-chip.active { border-color: var(--lime); color: var(--lime); }
+  #s1 .screen-score {
+    height: 42px; background: #0a1a0a; border: 1px solid var(--lime);
+    display: flex; align-items: center; padding: 0 10px; gap: 10px;
+  }
+  #s1 .big-score { font-size: 26px; font-weight: 800; color: var(--lime); font-family:'JetBrains Mono',monospace; }
+  #s1 .score-bars { flex: 1; display: flex; flex-direction: column; gap: 3px; }
+  #s1 .sbar { height: 4px; background: #1a1a1a; }
+  #s1 .sbar-fill { height: 100%; background: var(--lime); }
+  #s1 .hackathon-tag {
+    position: absolute; top: 54px; right: 32px;
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    color: var(--gray); letter-spacing: 1px;
+  }
+
+  /* ─────────────────────────────────── SLIDE 2: PROBLEM ─── */
+  #s2 .slide-body { padding: 32px 52px; gap: 32px; align-items: flex-start; }
+  #s2 .left { flex: 1; display: flex; flex-direction: column; justify-content: center; }
+  #s2 .right { flex: 1; display: flex; flex-direction: column; gap: 14px; justify-content: center; }
+  #s2 .stat-box {
+    background: #0d0d0d; border: 1.5px solid var(--border);
+    padding: 16px 20px; display: flex; align-items: center; gap: 16px;
+  }
+  #s2 .stat-num { font-size: 36px; font-weight: 800; color: var(--pink); font-family:'JetBrains Mono',monospace; min-width: 80px; }
+  #s2 .stat-desc { font-size: 13px; color: #aaa; line-height: 1.5; }
+  #s2 .pain-point {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 10px 14px; border-left: 3px solid var(--pink);
+    background: rgba(255,45,120,.05); margin-bottom: 10px;
+  }
+  #s2 .pain-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+  #s2 .pain-text { font-size: 13px; line-height: 1.5; color: #ccc; }
+
+  /* ─────────────────────────────────── SLIDE 3: SOLUTION ─── */
+  #s3 .slide-body { padding: 28px 52px; align-items: center; }
+  #s3 .content { width: 100%; }
+  #s3 .steps { display: flex; gap: 16px; margin-top: 24px; }
+  #s3 .step {
+    flex: 1; background: #0d0d0d; border: 1.5px solid var(--border);
+    padding: 20px; position: relative; overflow: hidden;
+  }
+  #s3 .step:nth-child(1) { border-top-color: var(--lime); }
+  #s3 .step:nth-child(2) { border-top-color: var(--cyan); }
+  #s3 .step:nth-child(3) { border-top-color: var(--pink); }
+  #s3 .step-num {
+    font-family: 'JetBrains Mono', monospace; font-size: 42px; font-weight: 800;
+    opacity: .08; position: absolute; right: 14px; bottom: 8px; line-height: 1;
+  }
+  #s3 .step-icon { font-size: 28px; margin-bottom: 10px; }
+  #s3 .step-title { font-size: 17px; font-weight: 700; margin-bottom: 8px; }
+  #s3 .step-desc { font-size: 12.5px; color: #999; line-height: 1.6; }
+  #s3 .step-detail {
+    margin-top: 10px; font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; color: var(--lime); letter-spacing: .5px;
+  }
+  #s3 .arrow {
+    display: flex; align-items: center; color: var(--border); font-size: 24px;
+    padding: 0 4px; flex-shrink: 0; align-self: center;
+  }
+
+  /* ─────────────────────────────────── SLIDE 4: HOW BRIGHT DATA ─── */
+  #s4 .slide-body { padding: 28px 52px; gap: 28px; }
+  #s4 .left { flex: 1; display: flex; flex-direction: column; gap: 14px; }
+  #s4 .right { flex: 1; display: flex; flex-direction: column; gap: 14px; justify-content: center; }
+  #s4 .bd-card {
+    background: #0d0d0d; border: 1.5px solid var(--border); padding: 16px;
+    display: flex; gap: 14px; align-items: flex-start;
+  }
+  #s4 .bd-card.highlight { border-color: var(--cyan); background: rgba(0,229,255,.04); }
+  #s4 .bd-icon { font-size: 22px; flex-shrink: 0; margin-top: 2px; }
+  #s4 .bd-title { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+  #s4 .bd-desc { font-size: 11.5px; color: #888; line-height: 1.5; }
+  #s4 .flow {
+    background: #0d0d0d; border: 1.5px solid var(--lime);
+    padding: 16px; display: flex; flex-direction: column; gap: 8px;
+  }
+  #s4 .flow-title {
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    color: var(--lime); letter-spacing: 2px; margin-bottom: 4px;
+  }
+  #s4 .flow-step {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 12px; color: #ccc; padding: 6px 10px;
+    background: #111; border-left: 2px solid var(--border);
+  }
+  #s4 .flow-step.done { border-left-color: var(--lime); }
+  #s4 .flow-badge {
+    font-family: 'JetBrains Mono', monospace; font-size: 9px;
+    padding: 2px 6px; background: rgba(204,255,0,.1); color: var(--lime);
+    border: 1px solid var(--lime); flex-shrink: 0;
+  }
+
+  /* ─────────────────────────────────── SLIDE 5: FEATURES ─── */
+  #s5 .slide-body { padding: 24px 52px; flex-direction: column; }
+  #s5 .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 20px; }
+  #s5 .feat {
+    background: #0d0d0d; border: 1.5px solid var(--border);
+    padding: 18px; position: relative; overflow: hidden;
+  }
+  #s5 .feat:hover { border-color: var(--lime); }
+  #s5 .feat-icon { font-size: 24px; margin-bottom: 10px; }
+  #s5 .feat-title { font-size: 14px; font-weight: 700; margin-bottom: 6px; }
+  #s5 .feat-desc { font-size: 11.5px; color: #777; line-height: 1.5; }
+  #s5 .feat-tag {
+    position: absolute; top: 12px; right: 12px;
+    font-family: 'JetBrains Mono', monospace; font-size: 9px;
+    color: var(--lime); letter-spacing: 1px; opacity: .7;
+  }
+
+  /* ─────────────────────────────────── SLIDE 6: AI SCORING ─── */
+  #s6 .slide-body { padding: 28px 52px; gap: 28px; align-items: center; }
+  #s6 .left { flex: 1; display: flex; flex-direction: column; gap: 14px; }
+  #s6 .right { flex: 1.1; display: flex; flex-direction: column; gap: 10px; }
+  #s6 .signal {
+    display: flex; align-items: center; gap: 12px;
+    background: #0d0d0d; border: 1.5px solid var(--border); padding: 12px 16px;
+  }
+  #s6 .sig-icon { font-size: 18px; flex-shrink: 0; }
+  #s6 .sig-label { flex: 1; font-size: 13px; font-weight: 600; }
+  #s6 .sig-weight {
+    font-family: 'JetBrains Mono', monospace; font-size: 18px; font-weight: 800;
+    min-width: 52px; text-align: right;
+  }
+  #s6 .sig-bar { flex: 1; height: 4px; background: #222; margin: 0 8px; }
+  #s6 .sig-fill { height: 100%; }
+  #s6 .score-demo {
+    background: #080808; border: 1.5px solid var(--lime);
+    padding: 20px; display: flex; gap: 20px; align-items: center;
+    box-shadow: 0 0 30px rgba(204,255,0,.1);
+  }
+  #s6 .big-ring { text-align: center; }
+  #s6 .ring-num { font-size: 56px; font-weight: 800; color: var(--lime); font-family:'JetBrains Mono',monospace; line-height: 1; }
+  #s6 .ring-label { font-size: 10px; color: var(--gray); letter-spacing: 2px; font-family:'JetBrains Mono',monospace; }
+  #s6 .score-bars { flex: 1; display: flex; flex-direction: column; gap: 8px; }
+  #s6 .srow { display: flex; align-items: center; gap: 8px; }
+  #s6 .srow-label { font-size: 11px; color: #888; width: 90px; }
+  #s6 .srow-bar { flex: 1; height: 5px; background: #1a1a1a; }
+  #s6 .srow-fill { height: 100%; background: var(--lime); }
+  #s6 .srow-val { font-family:'JetBrains Mono',monospace; font-size: 11px; color: var(--lime); width: 30px; text-align: right; }
+  #s6 .insight-box {
+    background: #0a1200; border: 1.5px solid var(--lime); padding: 12px 16px;
+  }
+  #s6 .insight-title { font-size: 11px; color: var(--lime); font-family:'JetBrains Mono',monospace; letter-spacing: 1px; margin-bottom: 6px; }
+  #s6 .insight-text { font-size: 12px; color: #aaa; line-height: 1.5; }
+  #s6 .bid-box {
+    background: #0d0d0d; border: 1.5px solid var(--cyan); padding: 12px 16px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  #s6 .bid-amount { font-size: 28px; font-weight: 800; color: var(--cyan); font-family:'JetBrains Mono',monospace; }
+  #s6 .bid-detail { font-size: 11px; color: #888; line-height: 1.5; }
+
+  /* ─────────────────────────────────── SLIDE 7: TECH STACK ─── */
+  #s7 .slide-body { padding: 28px 52px; flex-direction: column; }
+  #s7 .stack-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 20px; }
+  #s7 .layer { background: #0d0d0d; border: 1.5px solid var(--border); padding: 14px; }
+  #s7 .layer-title {
+    font-family: 'JetBrains Mono', monospace; font-size: 9px;
+    color: var(--gray); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 10px;
+  }
+  #s7 .tech-item {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 8px;
+    padding: 6px 8px; background: #111; border-left: 2px solid var(--border);
+  }
+  #s7 .tech-icon { font-size: 14px; }
+  #s7 .tech-name { font-size: 12px; font-weight: 600; }
+  #s7 .tech-version { font-family:'JetBrains Mono',monospace; font-size: 9px; color: var(--gray); margin-left: auto; }
+  #s7 .layer.bd { border-color: var(--lime); }
+  #s7 .layer.ai { border-color: var(--cyan); }
+  #s7 .layer.backend { border-color: var(--orange); }
+  #s7 .layer.frontend { border-color: var(--pink); }
+
+  /* ─────────────────────────────────── SLIDE 8: DEMO FLOW ─── */
+  #s8 .slide-body { padding: 28px 52px; flex-direction: column; align-items: center; }
+  #s8 .flow-timeline { display: flex; gap: 0; margin-top: 24px; width: 100%; }
+  #s8 .flow-node {
+    flex: 1; display: flex; flex-direction: column; align-items: center; position: relative;
+  }
+  #s8 .flow-node:not(:last-child)::after {
+    content: '→'; position: absolute; top: 28px; right: -16px;
+    color: var(--border); font-size: 20px; z-index: 2;
+  }
+  #s8 .node-circle {
+    width: 56px; height: 56px; background: #0d0d0d; border: 2px solid var(--border);
+    display: flex; align-items: center; justify-content: center; font-size: 22px;
+    margin-bottom: 10px; position: relative; z-index: 1;
+  }
+  #s8 .node-circle.active { border-color: var(--lime); background: rgba(204,255,0,.08); }
+  #s8 .node-label { font-size: 12px; font-weight: 700; text-align: center; margin-bottom: 6px; }
+  #s8 .node-desc { font-size: 10.5px; color: #777; text-align: center; line-height: 1.5; max-width: 110px; }
+  #s8 .node-badge {
+    margin-top: 6px; font-family:'JetBrains Mono',monospace; font-size: 9px;
+    color: var(--lime); letter-spacing: 1px;
+  }
+  #s8 .result-bar {
+    margin-top: 24px; width: 100%; background: #0d0d0d; border: 1.5px solid var(--lime);
+    padding: 14px 20px; display: flex; align-items: center; gap: 20px;
+  }
+  #s8 .result-label { font-family:'JetBrains Mono',monospace; font-size: 10px; color: var(--lime); letter-spacing: 2px; }
+  #s8 .result-stat { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  #s8 .result-num { font-size: 28px; font-weight: 800; color: var(--lime); font-family:'JetBrains Mono',monospace; }
+  #s8 .result-text { font-size: 10px; color: var(--gray); letter-spacing: 1px; }
+  #s8 .divider { width: 1px; height: 40px; background: var(--border); }
+
+  /* ─────────────────────────────────── SLIDE 9: CTA ─── */
+  #s9 { }
+  #s9 .slide-body { padding: 0 56px; align-items: center; gap: 40px; }
+  #s9 .left { flex: 1.1; display: flex; flex-direction: column; justify-content: center; gap: 16px; }
+  #s9 .right { flex: 1; display: flex; flex-direction: column; gap: 12px; justify-content: center; }
+  #s9 .qr-box {
+    width: 140px; height: 140px; background: #0d0d0d; border: 2px solid var(--lime);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 8px; margin-bottom: 4px;
+    font-family: 'JetBrains Mono', monospace; font-size: 9px; color: var(--gray);
+    letter-spacing: 1px;
+  }
+  #s9 .qr-pattern { display: grid; grid-template-columns: repeat(8, 1fr); gap: 2px; width: 80px; }
+  #s9 .qr-cell { height: 8px; background: var(--lime); border-radius: 0; }
+  #s9 .qr-cell.off { background: #1a1a1a; }
+  #s9 .stat-row { display: flex; gap: 12px; }
+  #s9 .mini-stat {
+    flex: 1; background: #0d0d0d; border: 1.5px solid var(--border);
+    padding: 12px; display: flex; flex-direction: column; gap: 4px;
+  }
+  #s9 .mini-num { font-size: 26px; font-weight: 800; font-family:'JetBrains Mono',monospace; }
+  #s9 .mini-label { font-size: 10px; color: var(--gray); letter-spacing: 1px; }
+  #s9 .link-row {
+    display: flex; align-items: center; gap: 10px;
+    font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #888;
+    border: 1px solid var(--border); padding: 8px 14px;
+  }
+  #s9 .link-val { color: var(--lime); }
+
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════ SLIDE 1: TITLE ═══ -->
+<div class="slide" id="s1">
+  <div class="bg-grid"></div>
+  <div class="bg-glow" style="width:400px;height:400px;background:var(--lime);top:-100px;right:-100px;opacity:.12"></div>
+
+  <div class="slide-header">
+    <div class="logo-mark">
+      <div class="logo-box">AL</div>
+      <span class="logo-text">AutoLance</span>
+    </div>
+    <div class="live-dot"><div class="dot"></div>HACKATHON SUBMISSION</div>
+    <span class="slide-num">01 / 09</span>
+  </div>
+
+  <div class="hackathon-tag" style="top:54px;right:32px;text-align:right;line-height:1.8">
+    <span style="color:var(--lime);font-weight:700">WEB DATA UNLOCKED</span> · BRIGHT DATA HACKATHON<br>
+    <span style="color:#555">MAY 25–30 2026 · ONLINE TRACK</span>
+  </div>
+
+  <div class="slide-body">
+    <div class="left">
+      <p class="section-tag">▸ GTM Intelligence Track · Web Data UNLOCKED</p>
+      <h1>AUTO<span style="color:var(--lime)">LANCE</span></h1>
+      <p class="tagline">Stop scrolling Upwork manually. AutoLance scrapes, scores, and writes proposals — so you win more contracts with less effort.</p>
+      <div class="pills">
+        <span class="badge badge-lime">Bright Data Unlocker</span>
+        <span class="badge badge-cyan">AI/ML API · Claude</span>
+        <span class="badge badge-orange">FastAPI</span>
+        <span class="badge" style="color:#e879f9;border-color:#e879f9;background:rgba(232,121,249,.08)">Next.js 15</span>
+      </div>
+      <div style="margin-top:16px;display:flex;align-items:center;gap:10px">
+        <div style="background:#111;border:1.5px solid var(--border);padding:8px 14px">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--gray);letter-spacing:2px;margin-bottom:3px">TEAM</div>
+          <div style="font-size:13px;font-weight:700;color:var(--white)">Team Mutex</div>
+          <div style="font-size:10px;color:#888;margin-top:2px">Musa Nadeem &nbsp;·&nbsp; Omer Irfan</div>
+        </div>
+        <div style="background:#111;border:1.5px solid var(--lime);padding:8px 14px">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--lime);letter-spacing:2px;margin-bottom:3px">PRIZE POOL</div>
+          <div style="font-size:18px;font-weight:800;color:var(--lime);font-family:'JetBrains Mono',monospace">$18,300</div>
+          <div style="font-size:10px;color:#888;margin-top:2px">+ AI Startup Program</div>
+        </div>
+      </div>
+    </div>
+    <div class="right">
+      <div class="screen">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--gray);letter-spacing:1px;margin-bottom:4px">MATCH SCORE — Senior ML Engineer</div>
+        <div class="screen-score">
+          <div class="big-score">87</div>
+          <div class="score-bars">
+            <div class="sbar"><div class="sbar-fill" style="width:90%"></div></div>
+            <div class="sbar"><div class="sbar-fill" style="width:82%"></div></div>
+            <div class="sbar"><div class="sbar-fill" style="width:88%"></div></div>
+            <div class="sbar"><div class="sbar-fill" style="width:85%"></div></div>
+          </div>
+        </div>
+        <div class="screen-bar" style="width:70%"></div>
+        <div class="screen-row">
+          <div class="screen-chip active">Python · FastAPI</div>
+          <div class="screen-chip">3 proposals</div>
+        </div>
+        <div class="screen-row">
+          <div class="screen-chip">Bid: $95/hr · Value</div>
+          <div class="screen-chip active">✓ Apply + Track</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════ SLIDE 2: PROBLEM ═══ -->
+<div class="slide" id="s2">
+  <div class="bg-grid"></div>
+  <div class="slide-header">
+    <div class="logo-mark"><div class="logo-box">AL</div><span class="logo-text">AutoLance</span></div>
+    <div class="live-dot"><div class="dot" style="background:var(--pink)"></div>THE PROBLEM</div>
+    <span class="slide-num">02 / 09</span>
+  </div>
+  <div class="slide-body">
+    <div class="left">
+      <p class="section-tag">▸ The Upwork Freelancer Pain</p>
+      <h2>Freelancers waste <span style="color:var(--pink)">hours</span> on jobs they'll never win</h2>
+      <p style="font-size:13px;color:#888;margin-top:12px;line-height:1.7">
+        Manual job searching is inefficient, biased, and exhausting.<br>
+        Most freelancers apply broadly and hope for the best.
+      </p>
+      <div style="margin-top:20px">
+        <div class="pain-point">
+          <span class="pain-icon">⏱</span>
+          <span class="pain-text">Average freelancer spends <strong>3-4 hours/day</strong> manually browsing and filtering Upwork listings</span>
+        </div>
+        <div class="pain-point">
+          <span class="pain-icon">📉</span>
+          <span class="pain-text">Proposals sent without reading the job carefully result in <strong>low win rates</strong> and wasted connects</span>
+        </div>
+        <div class="pain-point">
+          <span class="pain-icon">✍️</span>
+          <span class="pain-text">Generic cover letters fail to address client pain points — <strong>most go unread</strong></span>
+        </div>
+      </div>
+    </div>
+    <div class="right">
+      <div class="stat-box">
+        <div class="stat-num">18M+</div>
+        <div class="stat-desc">registered freelancers competing on Upwork for the same jobs daily</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-num" style="color:var(--orange)">~2%</div>
+        <div class="stat-desc">average proposal acceptance rate — most connects are wasted on poor-fit jobs</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-num" style="color:var(--cyan)">3-4h</div>
+        <div class="stat-desc">daily time lost to manual job searching, filtering, and writing proposals</div>
+      </div>
+      <div class="stat-box" style="border-color:var(--lime);background:rgba(204,255,0,.04)">
+        <div class="stat-num" style="color:var(--lime)">0</div>
+        <div class="stat-desc">tools that combine real-time scraping + AI scoring + personalized proposals in one platform</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════ SLIDE 3: SOLUTION ═══ -->
+<div class="slide" id="s3">
+  <div class="bg-grid"></div>
+  <div class="slide-header">
+    <div class="logo-mark"><div class="logo-box">AL</div><span class="logo-text">AutoLance</span></div>
+    <div class="live-dot"><div class="dot"></div>THE SOLUTION</div>
+    <span class="slide-num">03 / 09</span>
+  </div>
+  <div class="slide-body" style="flex-direction:column">
+    <div style="padding:28px 52px 0">
+      <p class="section-tag">▸ One Platform, Full Pipeline</p>
+      <h2>From CV to winning proposal — <span style="color:var(--lime)">automated</span></h2>
+    </div>
+    <div class="steps" style="padding:0 52px;flex:1;align-items:stretch;margin-top:18px">
+      <div class="step">
+        <div class="step-num">01</div>
+        <div class="step-icon">📄</div>
+        <div class="step-title">Upload Your CV</div>
+        <div class="step-desc">Claude AI reads your resume and extracts your niche, skills, rates, and experience level. Your profile drives everything.</div>
+        <div class="step-detail">→ AI-parsed in &lt; 10 seconds</div>
+      </div>
+      <div class="arrow">→</div>
+      <div class="step">
+        <div class="step-num">02</div>
+        <div class="step-icon">🌐</div>
+        <div class="step-title">Scrape & Score</div>
+        <div class="step-desc">Bright Data's Unlocker API fetches fresh Upwork listings matching your niche. Claude scores each job across 10 dimensions.</div>
+        <div class="step-detail">→ 23+ real jobs per scrape</div>
+      </div>
+      <div class="arrow">→</div>
+      <div class="step">
+        <div class="step-num">03</div>
+        <div class="step-icon">🤖</div>
+        <div class="step-title">Generate Proposals</div>
+        <div class="step-desc">One click generates a personalized, tone-aware cover letter. Pick Professional, Friendly, or Bold. Track every application in a Kanban board.</div>
+        <div class="step-detail">→ 150-200 words, never generic</div>
+      </div>
+    </div>
+    <div style="padding:12px 52px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px">
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <span class="badge badge-lime">PROFILE-DRIVEN SEARCH</span>
+        <span class="badge badge-cyan">AI SCORING ENGINE</span>
+        <span class="badge badge-pink">TONE-AWARE PROPOSALS</span>
+        <span class="badge badge-orange">REAL-TIME ALERTS</span>
+      </div>
+      <div style="background:rgba(204,255,0,.06);border:1.5px solid var(--lime);padding:8px 14px;flex-shrink:0;display:flex;align-items:center;gap:8px">
+        <div style="font-size:14px">🏆</div>
+        <div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:8px;color:var(--lime);letter-spacing:2px">HACKATHON TRACK</div>
+          <div style="font-size:12px;font-weight:700;color:var(--white)">GTM Intelligence</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════ SLIDE 4: BRIGHT DATA ═══ -->
+<div class="slide" id="s4">
+  <div class="bg-grid"></div>
+  <div class="bg-glow" style="width:300px;height:300px;background:var(--cyan);bottom:-50px;right:-50px;opacity:.1"></div>
+  <div class="slide-header">
+    <div class="logo-mark"><div class="logo-box">AL</div><span class="logo-text">AutoLance</span></div>
+    <div class="live-dot"><div class="dot" style="background:var(--cyan)"></div>BRIGHT DATA INTEGRATION</div>
+    <span class="slide-num">04 / 09</span>
+  </div>
+  <div class="slide-body">
+    <div class="left">
+      <div style="padding:28px 0 0 52px">
+        <p class="section-tag">▸ Powered by Bright Data · Web Unlocker</p>
+        <h2 style="font-size:26px">Bypassing Cloudflare to<br><span style="color:var(--cyan)">scrape live Upwork data</span></h2>
+        <p style="font-size:12px;color:#888;margin-top:8px;line-height:1.6">Upwork is heavily Cloudflare-protected and JavaScript-rendered. Standard scrapers are blocked instantly. Bright Data's <strong style="color:var(--white)">Web Unlocker</strong> routes requests through residential IPs, returns fully rendered HTML — unlocking data that was previously impossible to access programmatically.</p>
+      </div>
+      <div style="padding:12px 0 0 52px;display:flex;flex-direction:column;gap:10px">
+        <div class="bd-card highlight">
+          <div class="bd-icon">🔓</div>
+          <div>
+            <div class="bd-title">Web Unlocker API <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--cyan)">[zone1]</span></div>
+            <div class="bd-desc">Bypasses Cloudflare bot detection via residential IP rotation. Returns 1.5MB+ fully rendered Upwork search pages with embedded job state.</div>
+          </div>
+        </div>
+        <div class="bd-card">
+          <div class="bd-icon">🧩</div>
+          <div>
+            <div class="bd-title">__NUXT__ State Parser (Custom)</div>
+            <div class="bd-desc">Decodes Upwork's IIFE-compressed <code style="font-family:'JetBrains Mono',monospace">__NUXT__</code> variable table to extract structured job data: title, skills, budget, dates, client info.</div>
+          </div>
+        </div>
+        <div class="bd-card">
+          <div class="bd-icon">⚡</div>
+          <div>
+            <div class="bd-title">Parallel Fetch + Redis HTML Cache</div>
+            <div class="bd-desc">3 concurrent Unlocker requests. 14-min cache TTL eliminates redundant API calls. Profile-driven keywords from user's CV guide which URLs are fetched.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="right" style="padding:28px 52px 28px 0">
+      <div class="flow">
+        <div class="flow-title">◈ SCRAPE PIPELINE</div>
+        <div class="flow-step done">
+          <span class="flow-badge">CV</span>
+          Profile parsed → niche + top 3 skills extracted
+        </div>
+        <div class="flow-step done">
+          <span class="flow-badge">BD</span>
+          Bright Data Unlocker API → Upwork search page
+        </div>
+        <div class="flow-step done">
+          <span class="flow-badge">HTML</span>
+          1.5MB rendered HTML received (bypasses Cloudflare)
+        </div>
+        <div class="flow-step done">
+          <span class="flow-badge">NUXT</span>
+          __NUXT__ IIFE decoded → 10-40 job objects extracted
+        </div>
+        <div class="flow-step done">
+          <span class="flow-badge">DB</span>
+          Jobs ingested → client analyzed → bid strategy computed
+        </div>
+        <div class="flow-step done">
+          <span class="flow-badge">AI</span>
+          Claude scores each job → alerts dispatched
+        </div>
+      </div>
+      <div style="background:#0d0d0d;border:1.5px solid var(--border);padding:14px;margin-top:4px">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--gray);letter-spacing:2px;margin-bottom:10px">PERFORMANCE</div>
+        <div style="display:flex;gap:16px">
+          <div style="text-align:center">
+            <div style="font-size:26px;font-weight:800;color:var(--lime);font-family:'JetBrains Mono',monospace">23</div>
+            <div style="font-size:10px;color:var(--gray)">Jobs/scrape</div>
+          </div>
+          <div style="text-align:center">
+            <div style="font-size:26px;font-weight:800;color:var(--cyan);font-family:'JetBrains Mono',monospace">~52s</div>
+            <div style="font-size:10px;color:var(--gray)">Total scrape</div>
+          </div>
+          <div style="text-align:center">
+            <div style="font-size:26px;font-weight:800;color:var(--orange);font-family:'JetBrains Mono',monospace">14m</div>
+            <div style="font-size:10px;color:var(--gray)">Cache TTL</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════ SLIDE 5: FEATURES ═══ -->
+<div class="slide" id="s5">
+  <div class="bg-grid"></div>
+  <div class="slide-header">
+    <div class="logo-mark"><div class="logo-box">AL</div><span class="logo-text">AutoLance</span></div>
+    <div class="live-dot"><div class="dot"></div>FEATURES</div>
+    <span class="slide-num">05 / 09</span>
+  </div>
+  <div class="slide-body">
+    <div style="padding:24px 52px;width:100%">
+      <p class="section-tag">▸ Full Feature Set</p>
+      <h2>Everything a freelancer needs <span style="color:var(--lime)">in one place</span></h2>
+      <div class="grid">
+        <div class="feat">
+          <div class="feat-tag">CORE</div>
+          <div class="feat-icon">🎯</div>
+          <div class="feat-title">AI Job Scoring</div>
+          <div class="feat-desc">10-dimension match analysis: skill relevance, budget fit, competition, client quality, win probability. Scored by Claude via AI/ML API.</div>
+        </div>
+        <div class="feat" style="border-top-color:var(--cyan)">
+          <div class="feat-tag">BRIGHT DATA</div>
+          <div class="feat-icon">🔍</div>
+          <div class="feat-title">Real-Time Scraping</div>
+          <div class="feat-desc">Profile-driven keyword search. Bright Data Unlocker API fetches fresh Upwork listings every 15 minutes or on-demand.</div>
+        </div>
+        <div class="feat" style="border-top-color:var(--pink)">
+          <div class="feat-tag">AI/ML API</div>
+          <div class="feat-icon">✍️</div>
+          <div class="feat-title">Cover Letter Generator</div>
+          <div class="feat-desc">3 tones (Professional/Friendly/Bold), personalized to client pain points, never refuses to write regardless of skill match.</div>
+        </div>
+        <div class="feat" style="border-top-color:var(--orange)">
+          <div class="feat-tag">ANALYTICS</div>
+          <div class="feat-icon">💰</div>
+          <div class="feat-title">Bid Strategy Engine</div>
+          <div class="feat-desc">8-step deterministic algorithm computes Competitive/Value/Premium bid price based on budget anchor, competition, and client quality.</div>
+        </div>
+        <div class="feat">
+          <div class="feat-tag">UX</div>
+          <div class="feat-icon">📋</div>
+          <div class="feat-title">Proposal Tracker</div>
+          <div class="feat-desc">Kanban board with 7 stages (Drafted → Won). CSV export, funnel analytics, pipeline value tracking. Apply+Track one click.</div>
+        </div>
+        <div class="feat" style="border-top-color:var(--lime)">
+          <div class="feat-tag">REAL-TIME</div>
+          <div class="feat-icon">🔔</div>
+          <div class="feat-title">Smart Alerts</div>
+          <div class="feat-desc">Score-threshold notifications via in-app bell, Slack, and email. SSE endpoint for instant scrape-complete job list refresh.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════ SLIDE 6: AI SCORING ═══ -->
+<div class="slide" id="s6">
+  <div class="bg-grid"></div>
+  <div class="bg-glow" style="width:350px;height:350px;background:var(--lime);top:-100px;left:-100px;opacity:.08"></div>
+  <div class="slide-header">
+    <div class="logo-mark"><div class="logo-box">AL</div><span class="logo-text">AutoLance</span></div>
+    <div class="live-dot"><div class="dot"></div>AI SCORING ENGINE</div>
+    <span class="slide-num">06 / 09</span>
+  </div>
+  <div class="slide-body">
+    <div class="left" style="padding:28px 0 28px 52px">
+      <p class="section-tag">▸ Claude-Powered Match Analysis</p>
+      <h2 style="font-size:26px">4 signals → <span style="color:var(--lime)">one score</span></h2>
+      <p style="font-size:12px;color:#777;margin-top:8px;margin-bottom:18px;line-height:1.6">Each job is scored against the freelancer's profile using Claude AI for semantic analysis, then combined using a configurable weighted formula.</p>
+      <div class="signal" style="border-left:3px solid var(--lime)">
+        <span class="sig-icon">🧠</span>
+        <span class="sig-label">Skill Match</span>
+        <div class="sig-bar"><div class="sig-fill" style="background:var(--lime);width:90%"></div></div>
+        <span class="sig-weight" style="color:var(--lime)">35%</span>
+      </div>
+      <div class="signal" style="border-left:3px solid var(--cyan)">
+        <span class="sig-icon">💵</span>
+        <span class="sig-label">Budget Fit (ROI)</span>
+        <div class="sig-bar"><div class="sig-fill" style="background:var(--cyan);width:75%"></div></div>
+        <span class="sig-weight" style="color:var(--cyan)">30%</span>
+      </div>
+      <div class="signal" style="border-left:3px solid var(--orange)">
+        <span class="sig-icon">⚔️</span>
+        <span class="sig-label">Competition Level</span>
+        <div class="sig-bar"><div class="sig-fill" style="background:var(--orange);width:50%"></div></div>
+        <span class="sig-weight" style="color:var(--orange)">20%</span>
+      </div>
+      <div class="signal" style="border-left:3px solid var(--pink)">
+        <span class="sig-icon">⭐</span>
+        <span class="sig-label">Client Quality</span>
+        <div class="sig-bar"><div class="sig-fill" style="background:var(--pink);width:37.5%"></div></div>
+        <span class="sig-weight" style="color:var(--pink)">15%</span>
+      </div>
+    </div>
+    <div class="right" style="padding:28px 52px 28px 0">
+      <div class="score-demo">
+        <div class="big-ring">
+          <div class="ring-num">87</div>
+          <div class="ring-label">/100 MATCH</div>
+        </div>
+        <div class="score-bars">
+          <div class="srow"><span class="srow-label">Skill Match</span><div class="srow-bar"><div class="srow-fill" style="width:92%"></div></div><span class="srow-val">92</span></div>
+          <div class="srow"><span class="srow-label">Budget Fit</span><div class="srow-bar"><div class="srow-fill" style="width:85%"></div></div><span class="srow-val">85</span></div>
+          <div class="srow"><span class="srow-label">Competition</span><div class="srow-bar"><div class="srow-fill" style="width:88%"></div></div><span class="srow-val">88</span></div>
+          <div class="srow"><span class="srow-label">Client Quality</span><div class="srow-bar"><div class="srow-fill" style="width:78%"></div></div><span class="srow-val">78</span></div>
+        </div>
+      </div>
+      <div class="insight-box">
+        <div class="insight-title">◈ AI REASONING</div>
+        <div class="insight-text">"Strong Python/FastAPI alignment. Client has $52K spend history with 82% hire rate — low risk. Only 4 proposals submitted — apply immediately."</div>
+      </div>
+      <div class="bid-box">
+        <div style="display:flex;flex-direction:column;gap:2px">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--gray);letter-spacing:2px">RECOMMENDED BID</div>
+          <div style="display:flex;align-items:baseline;gap:6px">
+            <div class="bid-amount">$95</div>
+            <div style="font-size:13px;color:#888">/hr</div>
+            <span class="badge badge-cyan" style="font-size:9px;padding:2px 8px">VALUE STRATEGY</span>
+          </div>
+        </div>
+        <div class="bid-detail">Range: $85–$104/hr<br>Confidence: 85%</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════ SLIDE 7: TECH STACK ═══ -->
+<div class="slide" id="s7">
+  <div class="bg-grid"></div>
+  <div class="slide-header">
+    <div class="logo-mark"><div class="logo-box">AL</div><span class="logo-text">AutoLance</span></div>
+    <div class="live-dot"><div class="dot" style="background:var(--orange)"></div>TECH STACK</div>
+    <span class="slide-num">07 / 09</span>
+  </div>
+  <div class="slide-body">
+    <div style="padding:24px 52px;width:100%">
+      <p class="section-tag">▸ Production-Grade Architecture</p>
+      <h2>Built to scale from <span style="color:var(--lime)">day one</span></h2>
+      <div class="stack-grid">
+        <div class="layer bd">
+          <div class="layer-title">◈ SCRAPING</div>
+          <div class="tech-item" style="border-left-color:var(--lime)">
+            <span class="tech-icon">🌐</span>
+            <span class="tech-name">Bright Data</span>
+            <span class="tech-version">Unlocker API</span>
+          </div>
+          <div class="tech-item">
+            <span class="tech-icon">🔍</span>
+            <span class="tech-name">NUXT Parser</span>
+            <span class="tech-version">Custom</span>
+          </div>
+          <div class="tech-item">
+            <span class="tech-icon">⚡</span>
+            <span class="tech-name">curl_cffi</span>
+            <span class="tech-version">v0.15</span>
+          </div>
+        </div>
+        <div class="layer ai">
+          <div class="layer-title">◈ AI LAYER</div>
+          <div class="tech-item" style="border-left-color:var(--cyan)">
+            <span class="tech-icon">🤖</span>
+            <span class="tech-name">Claude AI</span>
+            <span class="tech-version">sonnet-4.6</span>
+          </div>
+          <div class="tech-item">
+            <span class="tech-icon">🔌</span>
+            <span class="tech-name">AI/ML API</span>
+            <span class="tech-version">OpenAI-compat</span>
+          </div>
+          <div class="tech-item">
+            <span class="tech-icon">📐</span>
+            <span class="tech-name">pgvector</span>
+            <span class="tech-version">pg16</span>
+          </div>
+        </div>
+        <div class="layer backend">
+          <div class="layer-title">◈ BACKEND</div>
+          <div class="tech-item" style="border-left-color:var(--orange)">
+            <span class="tech-icon">⚙️</span>
+            <span class="tech-name">FastAPI</span>
+            <span class="tech-version">0.115</span>
+          </div>
+          <div class="tech-item">
+            <span class="tech-icon">🗄️</span>
+            <span class="tech-name">PostgreSQL</span>
+            <span class="tech-version">16</span>
+          </div>
+          <div class="tech-item">
+            <span class="tech-icon">🔄</span>
+            <span class="tech-name">Celery + Redis</span>
+            <span class="tech-version">5.4 / 7</span>
+          </div>
+        </div>
+        <div class="layer frontend">
+          <div class="layer-title">◈ FRONTEND</div>
+          <div class="tech-item" style="border-left-color:var(--pink)">
+            <span class="tech-icon">▲</span>
+            <span class="tech-name">Next.js</span>
+            <span class="tech-version">15.3</span>
+          </div>
+          <div class="tech-item">
+            <span class="tech-icon">⚛️</span>
+            <span class="tech-name">React</span>
+            <span class="tech-version">19</span>
+          </div>
+          <div class="tech-item">
+            <span class="tech-icon">🎨</span>
+            <span class="tech-name">Tailwind + Framer</span>
+            <span class="tech-version">Neo-Brutalist</span>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:14px">
+        <span class="badge badge-lime">86/86 TESTS PASSING</span>
+        <span class="badge badge-cyan">0 TS ERRORS</span>
+        <span class="badge badge-orange">DOCKER COMPOSE · 8 SERVICES</span>
+        <span class="badge" style="color:#888;border-color:#333">ALEMBIC · 6 MIGRATIONS</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════ SLIDE 8: DEMO FLOW ═══ -->
+<div class="slide" id="s8">
+  <div class="bg-grid"></div>
+  <div class="slide-header">
+    <div class="logo-mark"><div class="logo-box">AL</div><span class="logo-text">AutoLance</span></div>
+    <div class="live-dot"><div class="dot"></div>LIVE DEMO</div>
+    <span class="slide-num">08 / 09</span>
+  </div>
+  <div class="slide-body">
+    <div style="padding:24px 52px;width:100%;display:flex;flex-direction:column">
+      <p class="section-tag">▸ End-to-End Demo Flow</p>
+      <h2 style="margin-bottom:20px">From <span style="color:var(--lime)">zero to proposal</span> in under 3 minutes</h2>
+      <div class="flow-timeline">
+        <div class="flow-node">
+          <div class="node-circle active">📋</div>
+          <div class="node-label">Register &amp; Upload CV</div>
+          <div class="node-desc">Create account, upload PDF/DOCX resume</div>
+          <div class="node-badge">~30s</div>
+        </div>
+        <div class="flow-node">
+          <div class="node-circle active">🧠</div>
+          <div class="node-label">AI CV Parsing</div>
+          <div class="node-desc">Claude extracts skills, niche, rates from resume</div>
+          <div class="node-badge">~8s</div>
+        </div>
+        <div class="flow-node">
+          <div class="node-circle active">🌐</div>
+          <div class="node-label">Scrape Now</div>
+          <div class="node-desc">Bright Data fetches Upwork jobs matching your profile</div>
+          <div class="node-badge">~52s</div>
+        </div>
+        <div class="flow-node">
+          <div class="node-circle active">🎯</div>
+          <div class="node-label">Browse &amp; Score</div>
+          <div class="node-desc">Jobs ranked by AI match score, filter by skill/budget</div>
+          <div class="node-badge">instant</div>
+        </div>
+        <div class="flow-node">
+          <div class="node-circle active">✍️</div>
+          <div class="node-label">Generate Letter</div>
+          <div class="node-desc">1-click personalized cover letter via Claude AI</div>
+          <div class="node-badge">~6s</div>
+        </div>
+        <div class="flow-node">
+          <div class="node-circle active">📊</div>
+          <div class="node-label">Track &amp; Win</div>
+          <div class="node-desc">Kanban pipeline, analytics, proposal export</div>
+          <div class="node-badge">ongoing</div>
+        </div>
+      </div>
+      <div class="result-bar">
+        <div class="result-label">VERIFIED RESULTS&nbsp;&nbsp;</div>
+        <div class="result-stat">
+          <div class="result-num" style="color:var(--lime)">23</div>
+          <div class="result-text">REAL JOBS SCRAPED</div>
+        </div>
+        <div class="divider"></div>
+        <div class="result-stat">
+          <div class="result-num" style="color:var(--cyan)">8s</div>
+          <div class="result-text">CV PARSE TIME</div>
+        </div>
+        <div class="divider"></div>
+        <div class="result-stat">
+          <div class="result-num" style="color:var(--orange)">52s</div>
+          <div class="result-text">FULL SCRAPE RUN</div>
+        </div>
+        <div class="divider"></div>
+        <div class="result-stat">
+          <div class="result-num" style="color:var(--pink)">69</div>
+          <div class="result-text">AI SCORES COMPUTED</div>
+        </div>
+        <div class="divider"></div>
+        <div class="result-stat">
+          <div class="result-num" style="color:var(--lime)">86</div>
+          <div class="result-text">TESTS PASSING</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════ SLIDE 9: CTA ═══ -->
+<div class="slide" id="s9">
+  <div class="bg-grid"></div>
+  <div class="bg-glow" style="width:500px;height:500px;background:var(--lime);bottom:-200px;right:-200px;opacity:.1"></div>
+  <div class="slide-header">
+    <div class="logo-mark"><div class="logo-box">AL</div><span class="logo-text">AutoLance</span></div>
+    <div class="live-dot"><div class="dot"></div>THANK YOU</div>
+    <span class="slide-num">09 / 09</span>
+  </div>
+  <div class="slide-body">
+    <div class="left">
+      <p class="section-tag">▸ Built for the Hackathon</p>
+      <h2 style="font-size:40px">Smarter freelancing<br>starts <span style="color:var(--lime)">here.</span></h2>
+      <p style="font-size:13px;color:#888;margin-top:12px;line-height:1.7;max-width:340px">AutoLance combines Bright Data's web intelligence infrastructure with Claude AI's reasoning to give every freelancer an unfair advantage.</p>
+      <div class="stat-row" style="margin-top:20px">
+        <div class="mini-stat">
+          <div class="mini-num" style="color:var(--lime)">23+</div>
+          <div class="mini-label">REAL JOBS / RUN</div>
+        </div>
+        <div class="mini-stat">
+          <div class="mini-num" style="color:var(--cyan)">10</div>
+          <div class="mini-label">AI SCORE SIGNALS</div>
+        </div>
+        <div class="mini-stat">
+          <div class="mini-num" style="color:var(--pink)">3</div>
+          <div class="mini-label">PROPOSAL TONES</div>
+        </div>
+      </div>
+      <div style="margin-top:16px;display:flex;flex-direction:column;gap:8px">
+        <div class="link-row">
+          <span style="font-size:11px;color:var(--gray)">GITHUB</span>
+          <span class="link-val">github.com/MusaNadeem/AutoLance</span>
+        </div>
+        <div class="link-row">
+          <span style="font-size:11px;color:var(--gray)">TRACK&nbsp;</span>
+          <span class="link-val" style="color:var(--lime)">GTM Intelligence</span>
+        </div>
+        <div class="link-row">
+          <span style="font-size:11px;color:var(--gray)">TOOLS&nbsp;</span>
+          <span class="link-val">Web Unlocker · AI/ML API</span>
+        </div>
+      </div>
+    </div>
+    <div class="right" style="align-items:center;justify-content:center;padding-right:52px">
+      <div style="display:flex;flex-direction:column;align-items:center;gap:14px;width:100%">
+        <!-- Hackathon Badge -->
+        <div style="width:100%;background:#0d0d0d;border:2px solid var(--lime);padding:18px 20px;box-shadow:0 0 30px rgba(204,255,0,.12)">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--lime);letter-spacing:2px;margin-bottom:4px">🏆 WEB DATA UNLOCKED</div>
+          <div style="font-size:15px;font-weight:800;color:var(--white)">Bright Data Hackathon 2026</div>
+          <div style="font-size:11px;color:#888;margin-top:4px">May 25–30 · Online Track</div>
+        </div>
+        <!-- Prizes -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%">
+          <div style="background:#0d0d0d;border:1.5px solid var(--lime);padding:10px 14px">
+            <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--lime);letter-spacing:1px">GTM TRACK</div>
+            <div style="font-size:22px;font-weight:800;color:var(--lime);font-family:'JetBrains Mono',monospace">$700</div>
+            <div style="font-size:10px;color:#777">Online prize</div>
+          </div>
+          <div style="background:#0d0d0d;border:1.5px solid var(--cyan);padding:10px 14px">
+            <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--cyan);letter-spacing:1px">AI/ML API PARTNER</div>
+            <div style="font-size:22px;font-weight:800;color:var(--cyan);font-family:'JetBrains Mono',monospace">$2K</div>
+            <div style="font-size:10px;color:#777">$1K cash + $1K credits</div>
+          </div>
+          <div style="grid-column:1/-1;background:#0a1200;border:1.5px solid var(--lime);padding:10px 14px">
+            <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--lime);letter-spacing:1px">BRIGHT DATA AI STARTUP PROGRAM</div>
+            <div style="font-size:18px;font-weight:800;color:var(--lime);font-family:'JetBrains Mono',monospace">$20K credits</div>
+            <div style="font-size:10px;color:#777">Fast-tracked for winning teams</div>
+          </div>
+        </div>
+        <!-- Team -->
+        <div style="width:100%;background:#0d0d0d;border:1.5px solid var(--border);padding:12px 16px;display:flex;align-items:center;gap:14px">
+          <div style="font-size:28px">👥</div>
+          <div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--gray);letter-spacing:2px;margin-bottom:4px">TEAM MUTEX</div>
+            <div style="font-size:13px;font-weight:700;color:var(--white)">Musa Nadeem &nbsp;·&nbsp; Omer Irfan</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
